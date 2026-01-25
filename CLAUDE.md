@@ -1,0 +1,65 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+UIGen is an AI-powered React component generator with live preview. Users describe components in natural language, Claude generates the code, and a live preview renders it in real-time.
+
+**Stack:** Next.js 15, React 19, TypeScript, Tailwind CSS v4, SQLite + Prisma, Anthropic Claude (haiku-4.5)
+
+## Commands
+
+```bash
+# Development
+npm run dev              # Start dev server with Turbopack
+npm run setup           # Full setup: install deps, generate Prisma, migrate DB
+
+# Testing & Quality
+npm run test            # Run Vitest test suite
+npm run lint            # Run ESLint
+
+# Production
+npm run build           # Build for production
+npm run start           # Start production server
+
+# Database
+npm run db:reset        # Force reset Prisma migrations
+```
+
+## Architecture
+
+### Core Data Flow
+1. User describes component in chat → `/api/chat` route streams Claude response
+2. Claude uses `str_replace_editor` tool to modify files in the VirtualFileSystem
+3. FileSystemContext updates state → PreviewFrame renders component with Babel transpilation
+4. Projects persist to SQLite (authenticated) or localStorage (anonymous)
+
+### Key Directories
+- `src/app/` - Next.js App Router pages and API routes
+- `src/actions/` - Server actions for auth and project CRUD
+- `src/components/` - React components organized by feature (chat/, editor/, preview/, auth/)
+- `src/lib/` - Core utilities:
+  - `file-system.ts` - VirtualFileSystem class (in-memory file representation)
+  - `auth.ts` - JWT session management
+  - `provider.ts` - AI provider (Claude or MockLanguageModel fallback)
+  - `contexts/` - FileSystemContext and ChatContext
+  - `tools/` - AI tools (str-replace, file-manager)
+  - `prompts/generation.tsx` - System prompt for component generation
+
+### Database Schema (Prisma/SQLite)
+- **User:** id, email, password (bcrypt), projects[]
+- **Project:** id, name, userId (nullable), messages (JSON), data (JSON file system)
+
+### UI Components
+Built with shadcn/ui (New York style) and Radix primitives. Components are in `src/components/ui/`.
+
+## Environment Variables
+
+Required in `.env`:
+- `ANTHROPIC_API_KEY` - Claude API key (falls back to mock if missing)
+- `JWT_SECRET` - Secret for session tokens
+
+## Testing
+
+Tests use Vitest with jsdom environment and React Testing Library. Test files are colocated in `__tests__/` directories next to the code they test.
