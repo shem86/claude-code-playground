@@ -41,9 +41,11 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # Load MCP servers and permissions from .claude/settings.json
-          settings: '.claude/settings.json'
           # Read-only mode: Claude tests and comments but doesn't create branches/PRs
           use_sticky_comment: true
-          claude_args: '--auto-approve-mcp --read-only'
+          claude_args: |
+            --auto-approve-mcp
+            --read-only
+            --mcp-config '{"mcpServers":{"playwright":{"command":"npx","args":["@playwright/mcp@latest","--allowed-origins","localhost:3000;cdn.tailwindcss.com;esm.sh"]}}}'
+            --allowed-tools "mcp__playwright__*"
 
