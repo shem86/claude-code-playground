@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest",
+        "--allowed-origins",
+        "localhost:3000;cdn.tailwindcss.com;esm.sh"
+      ]
+    }
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(node:*)",
+      "Bash(sqlite3:*)",
+      "mcp__playwright__*"
+    ]
+  }
+}

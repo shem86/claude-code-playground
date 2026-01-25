@@ -41,22 +41,6 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
-          # MCP server configuration for Playwright browser automation
-          settings: |
-            {
-              "mcpServers": {
-                "playwright": {
-                  "command": "npx",
-                  "args": [
-                    "@playwright/mcp@latest",
-                    "--allowed-origins",
-                    "localhost:3000;cdn.tailwindcss.com;esm.sh"
-                  ]
-                }
-              }
-            }
-
-          # Allowed tools passed via claude_args
-          claude_args: '--allowed-tools "Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(sqlite3:*),mcp__playwright__*" --auto-approve-mcp'
+          # MCP servers and permissions are configured in .claude/settings.json
+          claude_args: '--auto-approve-mcp'
 
