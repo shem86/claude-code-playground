@@ -19,8 +19,8 @@ jobs:
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
     permissions:
-      contents: write        # Required for Claude to create branches and push commits
-      pull-requests: write   # Required for Claude to create and comment on PRs
+      contents: read         # Read-only access to code
+      pull-requests: write   # Required for Claude to comment on PRs
       issues: write          # Required for Claude to comment on issues
       id-token: write
       actions: read          # Required for Claude to read CI results on PRs
@@ -42,5 +42,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # MCP servers and permissions are configured in .claude/settings.json
-          claude_args: '--auto-approve-mcp'
+          # Read-only mode: Claude tests and comments but doesn't create branches/PRs
+          use_sticky_comment: true
+          claude_args: '--auto-approve-mcp --read-only'
 
