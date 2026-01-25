@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "Bash(npm run test:*)",
+      "Bash(npm audit:*)",
+      "Bash(npm install:*)",
+      "mcp__playwright",
+      "Bash(git add:*)"
+    ]
+  }
+}

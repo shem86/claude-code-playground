@@ -50,8 +50,5 @@ next-env.d.ts
 /prisma/dev.db
 /prisma/dev.db-journal
 
-# claude code
-.claude/
-
 # playwright mcp
 .playwright-mcp/
