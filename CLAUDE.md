@@ -63,12 +63,3 @@ Required in `.env`:
 ## Testing
 
 Tests use Vitest with jsdom environment and React Testing Library. Test files are colocated in `__tests__/` directories next to the code they test.
-
-## GitHub Actions Context
-
-When running in GitHub Actions (via claude-code-action):
-- The project is already set up with all dependencies installed
-- The dev server is running at http://localhost:3000
-- Server logs are written to `logs.txt`
-- Use `sqlite3` CLI to query the database if needed
-- Use `mcp__playwright__*` tools to launch a browser and interact with the app for testing
