@@ -41,7 +41,8 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # MCP servers and permissions are configured in .claude/settings.json
+          # Load MCP servers and permissions from .claude/settings.json
+          settings: '.claude/settings.json'
           # Read-only mode: Claude tests and comments but doesn't create branches/PRs
           use_sticky_comment: true
           claude_args: '--auto-approve-mcp --read-only'
