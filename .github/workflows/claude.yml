@@ -34,6 +34,7 @@ jobs:
         run: |
           npm run setup
           npm run dev:daemon
+          npx playwright install --with-deps chromium
 
       - name: Run Claude Code
         id: claude
@@ -57,5 +58,5 @@ jobs:
             }
 
           # Allowed tools passed via claude_args
-          claude_args: '--allowed-tools "Bash(npm:*),Bash(sqlite3:*),mcp__playwright__*"'
+          claude_args: '--allowed-tools "Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(sqlite3:*),mcp__playwright__*" --auto-approve-mcp'
 
