@@ -30,15 +30,27 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Project setup
+        run: |
+          npm run setup
+          npm run dev:deamon
+
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
+          custom_instructions: |
+            the project is alreaday setup with all dependencies installed.
+            The server is running at http://localhost:3000. Log from it
+            are being written to logs.txt. If needed you can query the 
+            db with the 'sqlite3' cli. If needed, use the mcp__playwrite
+            set of tools to luanch a browser and interact with the app.
+
           # This is an optional setting that allows Claude to read CI results on PRs
-          additional_permissions: |
-            actions: read
+          # additional_permissions: |
+          #   actions: read
 
           # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
           # prompt: 'Update the pull request description to include a summary of changes.'
