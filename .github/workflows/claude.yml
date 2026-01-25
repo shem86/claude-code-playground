@@ -47,6 +47,6 @@ jobs:
           claude_args: |
             --auto-approve-mcp
             --read-only
-            --mcp-config '{"mcpServers":{"playwright":{"command":"@playwright/mcp","args":["--allowed-origins","localhost:3000;cdn.tailwindcss.com;esm.sh"]}}}'
+            --mcp-config '{"mcpServers":{"playwright":{"command":"npx","args":["@playwright/mcp@0.0.59","--allowed-origins","localhost:3000;cdn.tailwindcss.com;esm.sh"]}}}'
             --allowed-tools "mcp__playwright__*"
 
