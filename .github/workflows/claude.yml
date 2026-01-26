@@ -42,33 +42,21 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Read-only mode: Claude tests and comments but doesn't create branches/PRs
           # use_sticky_comment: true
-
-          custom instructions: |
-            You are Claude, an AI coding assistant integrated with GitHub.
-            You have read-only access to the codebase and CI results.
-            You can suggest code changes, create branches, and open pull requests based on user comments.
-            Always explain your reasoning in detail when suggesting changes.
-            When creating pull requests, provide a clear title and description of the changes made.
-            - The project is already set up with all dependencies installed
-            - The dev server is running at http://localhost:3000
-            - Server logs are written to `logs.txt`
-            - Use `sqlite3` CLI to query the database if needed
-            - Use `mcp__playwright__*` tools to launch a browser and interact with the app for testing
-
-          mcp_config: |
-            {
-              "mcpServers": {
-                "playwright": {
-                  "command": "npx",
-                  "args": [
-                    "@playwright/mcp@latest",
-                    "--allowed-origins",
-                    "localhost:3000;cdn.tailwindcss.com;esm.sh"
-                  ]
-                }
-              }
-            }
-          allowed_tools: "Bash(npm:*), Bash(sqlite3:*), mcp__playwright__browser_close,mcp__playwright__browser_resize,mcp__playwright__browser_console_messages,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_install,mcp__playwright__browser_press_key,mcp__playwright__browser_type,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_run_code,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_snapshot,mcp__playwright__browser_click,mcp__playwright__browser_drag,mcp__playwright__browser_hover,mcp__playwright__browser_select_option,mcp__playwright__browser_tabs,mcp__playwright__browser_wait_for"
+          claude_args: |
+            --mcp-config '{"mcpServers":{"playwright":{"command":"npx","args":["@playwright/mcp@latest","--allowed-origins","localhost:3000;cdn.tailwindcss.com;esm.sh"]}}}'
+            --allowed-tools "Bash(npm:*), Bash(sqlite3:*), mcp__playwright__browser_close,mcp__playwright__browser_resize,mcp__playwright__browser_console_messages,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_install,mcp__playwright__browser_press_key,mcp__playwright__browser_type,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_run_code,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_snapshot,mcp__playwright__browser_click,mcp__playwright__browser_drag,mcp__playwright__browser_hover,mcp__playwright__browser_select_option,mcp__playwright__browser_tabs,mcp__playwright__browser_wait_for"
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE NUMBER: ${{ github.event.issue.number }}
+            TITLE: ${{ github.event.issue.title }}
+            BODY: ${{ github.event.issue.body }}
+            AUTHOR: ${{ github.event.issue.user.login }}
+            
+            The project is already set up with all dependencies installed,
+            The dev server is running at http://localhost:3000,
+            Server logs are written to `logs.txt`,
+            Use `sqlite3` CLI to query the database if needed,
+            Use `mcp__playwright__*` tools to launch a browser and interact with the app for testing
           
           # claude_args: |
           #   --auto-approve-mcp
