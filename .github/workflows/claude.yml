@@ -34,6 +34,11 @@ jobs:
         run: |
           npm run setup
           npm run dev:daemon
+      
+      - name: Wait for dev server                                                                      
+        run: |                                                                                         
+          timeout 60 bash -c 'until curl -s http://localhost:3000 > /dev/null; do sleep 2; done'       
+          echo "Dev server is ready"    
 
       - name: Run Claude Code
         id: claude
@@ -45,12 +50,80 @@ jobs:
           # use_sticky_comment: true
           claude_args: |
             --mcp-config '{"mcpServers":{"playwright":{"command":"npx","args":["@playwright/mcp@latest","--allowed-origins","localhost:3000;cdn.tailwindcss.com;esm.sh"]}}}'
-            --allowed-tools Edit,Read,Write,Bash(npm:*),Bash(sqlite3:*),mcp__playwright__browser_close,mcp__playwright__browser_resize,mcp__playwright__browser_console_messages,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_install,mcp__playwright__browser_press_key,mcp__playwright__browser_type,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_run_code,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_snapshot,mcp__playwright__browser_click,mcp__playwright__browser_drag,mcp__playwright__browser_hover,mcp__playwright__browser_select_option,mcp__playwright__browser_tabs,mcp__playwright__browser_wait_for
+            --allowed-tools Glob,Grep,Read,AskUserQuestion,Bash(npm:*),Bash(sqlite3:*),mcp__playwright__browser_close,mcp__playwright__browser_resize,mcp__playwright__browser_console_messages,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_install,mcp__playwright__browser_press_key,mcp__playwright__browser_type,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_run_code,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_snapshot,mcp__playwright__browser_click,mcp__playwright__browser_drag,mcp__playwright__browser_hover,mcp__playwright__browser_select_option,mcp__playwright__browser_tabs,mcp__playwright__browser_wait_for
             --disallowedTools WebSearch
-            --system-prompt "The project is already set up with all dependencies installed, The dev server is running at http://localhost:3000, Server logs are written to `logs.txt`, Use `sqlite3` CLI to query the database if needed, Use `mcp__playwright__*` tools to launch a browser and interact with the app for testing, if any artifacts are needed for later use copy them all into ./artifacts folder (create if needed) and they will be auto uploaded."
+            --system-prompt "The project is already set up with all dependencies installed, The dev server is running at http://localhost:3000, Server logs are written to `logs.txt`, Use `sqlite3` CLI to query the database if needed, Use `mcp__playwright__*` tools to launch a browser and interact with the app for testing, Save screenshots and test artifacts to ./artifacts/ folder (create if needed) - they will be auto-uploaded and a link will be posted in the comments"
       
       - name: Upload screenshots
+        id: upload-screenshots
         uses: actions/upload-artifact@v4
+        if: always()  # try upload even on prev step failure
         with:
           name: screenshots
           path: ./artifacts/
+          if-no-files-found: ignore # if no files found, don't fail the step
+
+      - name: Update comment with artifact links
+        if: always() && steps.upload-screenshots.outcome == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runId = context.runId;
+            const artifactId = '${{ steps.upload-screenshots.outputs.artifact-id }}';
+            const artifactUrl = '${{ steps.upload-screenshots.outputs.artifact-url }}';
+            const composedArtifactUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}/artifacts/${artifactId}`;
+
+            // Try to get comment ID from Claude action output (if available)
+            let commentId = '${{ steps.claude.outputs.comment-id }}';
+
+            // If not available, find the sticky comment
+            if (!commentId || commentId === '') {
+              let comments;
+              if (context.eventName === 'issue_comment' || context.eventName === 'issues') {
+                const response = await github.rest.issues.listComments({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  per_page: 100
+                });
+                comments = response.data;
+              } else if (context.eventName === 'pull_request_review_comment' || context.eventName === 'pull_request_review') {
+                const response = await github.rest.issues.listComments({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.pull_request.number,
+                  per_page: 100
+                });
+                comments = response.data;
+              }
+
+              // Find Claude's comment (most recent from github-actions bot)
+              const claudeComment = comments
+                .filter(c => c.user.login === 'github-actions[bot]')
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+
+              if (claudeComment) {
+                commentId = claudeComment.id;
+              }
+            }
+
+            if (commentId) {
+              // Get existing comment body
+              const comment = await github.rest.issues.getComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: commentId
+              });
+
+              // Append artifact link to existing comment
+              const artifactSection = `\n\n---\n\n📸 **[Download test screenshots](${artifactUrl})**`;
+
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: commentId,
+                body: comment.data.body + artifactSection
+              });
+            } else {
+              console.log('Could not find Claude comment to update');
+            }
