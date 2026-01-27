@@ -75,11 +75,14 @@ jobs:
 
             // Try to get comment ID from Claude action output (if available)
             let commentId = '${{ steps.claude.outputs.comment-id }}';
+            console.log('Comment ID from action output:', commentId);
+            console.log('Event name:', context.eventName);
 
             // If not available, find the sticky comment
             if (!commentId || commentId === '') {
               let comments;
               if (context.eventName === 'issue_comment' || context.eventName === 'issues') {
+                console.log('Fetching comments for issue:', context.issue.number);
                 const response = await github.rest.issues.listComments({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -88,6 +91,7 @@ jobs:
                 });
                 comments = response.data;
               } else if (context.eventName === 'pull_request_review_comment' || context.eventName === 'pull_request_review') {
+                console.log('Fetching comments for PR:', context.payload.pull_request.number);
                 const response = await github.rest.issues.listComments({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -97,13 +101,19 @@ jobs:
                 comments = response.data;
               }
 
-              // Find Claude's comment (most recent from github-actions bot)
-              const claudeComment = comments
-                .filter(c => c.user.login === 'github-actions[bot]')
-                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+              console.log('Found comments:', comments ? comments.length : 0);
 
-              if (claudeComment) {
-                commentId = claudeComment.id;
+              // Find Claude's comment (most recent from github-actions bot)
+              if (comments && comments.length > 0) {
+                const claudeComment = comments
+                  .filter(c => c.user.login === 'github-actions[bot]')
+                  .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+
+                console.log('Found Claude comment:', claudeComment ? claudeComment.id : 'none');
+
+                if (claudeComment) {
+                  commentId = claudeComment.id;
+                }
               }
             }
 
