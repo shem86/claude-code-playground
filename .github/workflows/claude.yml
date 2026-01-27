@@ -103,10 +103,10 @@ jobs:
 
               console.log('Found comments:', comments ? comments.length : 0);
 
-              // Find Claude's comment (most recent from github-actions bot)
+              // Find Claude's comment (most recent from claude[bot])
               if (comments && comments.length > 0) {
                 const claudeComment = comments
-                  .filter(c => c.user.login === 'github-actions[bot]')
+                  .filter(c => c.user.login === 'claude[bot]')
                   .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
 
                 console.log('Found Claude comment:', claudeComment ? claudeComment.id : 'none');
