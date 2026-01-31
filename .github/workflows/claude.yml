@@ -68,72 +68,51 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const runId = context.runId;
-            const artifactId = '${{ steps.upload-screenshots.outputs.artifact-id }}';
             const artifactUrl = '${{ steps.upload-screenshots.outputs.artifact-url }}';
-            const composedArtifactUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}/artifacts/${artifactId}`;
 
-            // Try to get comment ID from Claude action output (if available)
-            let commentId = '${{ steps.claude.outputs.comment-id }}';
-            console.log('Comment ID from action output:', commentId);
+            // Note: claude-code-action doesn't expose comment_id as a public output
+            // It's available internally as steps.prepare.outputs.claude_comment_id
+            // but not accessible to external workflows
+            // See: https://github.com/anthropics/claude-code-action/blob/main/action.yml
+
+            // Determine issue/PR number based on event type
+            const issueNumber = context.eventName === 'pull_request_review_comment' || context.eventName === 'pull_request_review'
+              ? context.payload.pull_request.number
+              : context.issue.number;
+
             console.log('Event name:', context.eventName);
+            console.log('Issue/PR number:', issueNumber);
 
-            // If not available, find the sticky comment
-            if (!commentId || commentId === '') {
-              let comments;
-              if (context.eventName === 'issue_comment' || context.eventName === 'issues') {
-                console.log('Fetching comments for issue:', context.issue.number);
-                const response = await github.rest.issues.listComments({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: context.issue.number,
-                  per_page: 100
-                });
-                comments = response.data;
-              } else if (context.eventName === 'pull_request_review_comment' || context.eventName === 'pull_request_review') {
-                console.log('Fetching comments for PR:', context.payload.pull_request.number);
-                const response = await github.rest.issues.listComments({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: context.payload.pull_request.number,
-                  per_page: 100
-                });
-                comments = response.data;
-              }
+            // Fetch comments
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              per_page: 100
+            });
 
-              console.log('Found comments:', comments ? comments.length : 0);
+            console.log('Total comments found:', comments.length);
 
-              // Find Claude's comment (most recent from claude[bot])
-              if (comments && comments.length > 0) {
-                const claudeComment = comments
-                  .filter(c => c.user.login === 'claude[bot]')
-                  .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+            // Find Claude's most recent comment (from claude[bot])
+            const claudeComment = comments
+              .filter(c => c.user.login === 'claude[bot]')
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
 
-                console.log('Found Claude comment:', claudeComment ? claudeComment.id : 'none');
-
-                if (claudeComment) {
-                  commentId = claudeComment.id;
-                }
-              }
+            if (!claudeComment) {
+              console.log('No Claude comment found to update');
+              return;
             }
 
-            if (commentId) {
-              // Get existing comment body
-              const comment = await github.rest.issues.getComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: commentId
-              });
+            console.log('Found Claude comment:', claudeComment.id);
 
-              // Append artifact link to existing comment
-              const artifactSection = `\n\n---\n\n📸 **[Download test screenshots](${artifactUrl})**`;
+            // Append artifact link to existing comment
+            const artifactSection = `\n\n---\n\n📸 **[Download test screenshots](${artifactUrl})**`;
 
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: commentId,
-                body: comment.data.body + artifactSection
-              });
-            } else {
-              console.log('Could not find Claude comment to update');
-            }
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: claudeComment.id,
+              body: claudeComment.body + artifactSection
+            });
+
+            console.log('Successfully updated comment with artifact link');
