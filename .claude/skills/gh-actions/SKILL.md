@@ -26,6 +26,7 @@ When invoked without arguments or with "review", analyze the current `.github/wo
 When invoked with "add-mcp [server-name]", help add an MCP server to the workflow:
 
 **Common MCP servers:**
+
 - `playwright` - Browser automation for testing web apps
 - `filesystem` - Advanced file operations
 - `github` - GitHub API integration
@@ -34,6 +35,7 @@ When invoked with "add-mcp [server-name]", help add an MCP server to the workflo
 - `memory` - Persistent memory across runs
 
 **Template for adding MCP:**
+
 ```yaml
 --mcp-config '{"mcpServers":{"SERVER_NAME":{"command":"COMMAND","args":["ARG1","ARG2"]}}}'
 ```
@@ -43,6 +45,7 @@ When invoked with "add-mcp [server-name]", help add an MCP server to the workflo
 When invoked with "configure-tools", help optimize the allowed/disallowed tools list:
 
 **Tool categories:**
+
 - Core: `Read`, `Edit`, `Write`, `Bash`
 - Search: `Glob`, `Grep`
 - Web: `WebFetch`, `WebSearch`
@@ -50,6 +53,7 @@ When invoked with "configure-tools", help optimize the allowed/disallowed tools 
 - MCP: `mcp__*` prefixed tools
 
 **Best practices:**
+
 - Use `Bash(pattern:*)` for restricted bash commands
 - Allow specific MCP tools rather than all tools
 - Disallow `WebSearch` if not needed to reduce costs
@@ -60,6 +64,7 @@ When invoked with "configure-tools", help optimize the allowed/disallowed tools 
 When invoked with "setup", create or update the workflow for this project:
 
 **Key considerations:**
+
 - What dependencies need to be installed?
 - Does the project need a database setup?
 - Should a dev server be running?
@@ -71,6 +76,7 @@ When invoked with "setup", create or update the workflow for this project:
 When invoked with "debug" or "troubleshoot", help diagnose workflow issues:
 
 **Common issues:**
+
 - Missing permissions
 - MCP server configuration errors
 - Tool restrictions too tight
@@ -79,6 +85,7 @@ When invoked with "debug" or "troubleshoot", help diagnose workflow issues:
 - Token/secret configuration
 
 **Debug commands:**
+
 ```bash
 # View recent workflow runs
 gh run list --workflow=claude.yml --limit 5
@@ -93,6 +100,7 @@ cat .github/workflows/claude.yml
 ## Configuration Templates
 
 ### Minimal Configuration
+
 ```yaml
 - name: Run Claude Code
   uses: anthropics/claude-code-action@v1
@@ -101,6 +109,7 @@ cat .github/workflows/claude.yml
 ```
 
 ### With MCP and Tools
+
 ```yaml
 - name: Run Claude Code
   uses: anthropics/claude-code-action@v1
@@ -113,6 +122,7 @@ cat .github/workflows/claude.yml
 ```
 
 ### With Artifacts
+
 ```yaml
 - name: Run Claude Code
   uses: anthropics/claude-code-action@v1
@@ -219,6 +229,7 @@ This skill includes additional resources:
 - [troubleshooting.md](troubleshooting.md) - Common errors and solutions (permissions, MCP servers, tools, secrets, timeouts, debugging)
 
 Load these files when you need:
+
 - Complete workflow templates to copy and customize
 - Real-world examples for specific tech stacks
 - Detailed configuration patterns
