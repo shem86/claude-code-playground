@@ -2,6 +2,9 @@
 
 An experimental repository showcasing **GitHub Actions + Claude Code integration**, custom skill development, and automated testing workflows. Built on a base project from a Claude Code course, this repo demonstrates real-world CI/CD automation with AI-powered code assistance.
 
+update (February 4): GitHub now supports these in a streamlined way using copilot on pro+ and enterprise accounts.
+see here: [`Pick your agent: Use Claude and Codex on Agent HQ`](https/company-news/pick-your-agent-use-claude-and-codex-on-agent-hq)
+
 > **Purpose:** Portfolio showcase for recruiters and experimentation with Claude Code's advanced features, GitHub Actions workflows, and MCP server integrations.
 
 ---
