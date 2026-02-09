@@ -34,6 +34,7 @@ const MyState = Annotation.Root({
 ```
 
 **Reducer patterns:**
+
 - `(_, b) => b` — last write wins (scalars)
 - `(a, b) => a + b` — accumulate (numbers)
 - `(a, b) => [...a, ...b]` — append (arrays)
@@ -90,6 +91,7 @@ const graph = new StateGraph(State)
 ```
 
 **When to use which:**
+
 - `Annotation.Root` — familiar API, well-tested, works everywhere. Use when extending `MessagesAnnotation.spec`.
 - `StateSchema` — v1 recommended, cleaner Zod integration, supports `ReducedValue`, `MessagesValue`, `UntrackedValue`. Use for new projects.
 
@@ -110,6 +112,7 @@ const graph = new StateGraph(State, ContextSchema);
 ## MessagesAnnotation
 
 Built-in annotation with `messagesStateReducer` that handles:
+
 - Appending new messages
 - Updating existing messages by ID (deduplication)
 - Format conversion
@@ -149,6 +152,7 @@ async function myNode(
 ```
 
 **Rules:**
+
 - Never mutate the incoming `state` object directly
 - Return only changed keys (partial state updates)
 - LangGraph applies reducers to merge the return value into state
@@ -412,7 +416,7 @@ for await (const [mode, chunk] of await workflow.stream(
 ### When to Use Functional API vs Graph API
 
 | Aspect | Functional API | Graph API |
-|--------|---------------|-----------|
+| --- | --- | --- |
 | Control flow | Standard if/for/function calls | Explicit nodes and edges |
 | State management | Scoped to function, no reducers needed | Shared state with reducers |
 | Checkpointing | Task results saved to entrypoint checkpoint | New checkpoint per superstep |
@@ -426,7 +430,7 @@ for await (const [mode, chunk] of await workflow.stream(
 ### Stream Modes
 
 | Mode | Description | Use Case |
-|------|-------------|----------|
+| ---- | ----------- | -------- |
 | `"values"` | Full state after each superstep | Debugging, state inspection |
 | `"updates"` | Delta from each node | Efficient state tracking |
 | `"messages"` | LLM tokens + metadata | Chatbot UIs |
@@ -736,6 +740,7 @@ const result = await agent.invoke({
 ```
 
 **Key differences from `createReactAgent`:**
+
 - Import: `"langchain"` (not `@langchain/langgraph/prebuilt`)
 - `systemPrompt` replaces `prompt`
 - `model` accepts string names (not just model instances)
@@ -798,7 +803,7 @@ const app = swarm.compile({ checkpointer: new MemorySaver() });
 ### Return Type Summary
 
 | Function | Returns | Need `.compile()`? | Package |
-|----------|---------|-------------------|---------|
+| -------- | ------- | ------------------ | ------- |
 | `createAgent` | Compiled graph | No | `langchain` |
 | `createReactAgent` | Compiled graph | No | `@langchain/langgraph/prebuilt` |
 | `createSupervisor` | `StateGraph` | Yes | `@langchain/langgraph-supervisor` |

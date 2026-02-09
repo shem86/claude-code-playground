@@ -1,7 +1,7 @@
 import { ChatAnthropic } from "@langchain/anthropic";
 import { StateGraph, START, END, Annotation, MessagesAnnotation } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
-import { BaseMessage, HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
+import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
 import { VirtualFileSystem } from "@/lib/file-system";
 import { buildStrReplaceLangChainTool } from "@/lib/tools/str-replace";
 import { buildFileManagerLangChainTool } from "@/lib/tools/file-manager";
@@ -36,6 +36,8 @@ const WorkflowState = Annotation.Root({
   designRetries: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
   engineerRetries: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
   qaRetries: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
+  engineerStartIdx: Annotation<number>({ reducer: (_, b) => b, default: () => -1 }),
+  qaStartIdx: Annotation<number>({ reducer: (_, b) => b, default: () => -1 }),
 });
 
 export type WorkflowStateType = typeof WorkflowState.State;
@@ -81,7 +83,9 @@ export function buildMultiAgentGraph(
     });
 
     const systemMsg = new SystemMessage(DESIGN_SYSTEM_PROMPT);
-    const response = await designModel.invoke([systemMsg, ...state.messages]);
+    // Only pass user messages — design doesn't need to see other agents' messages
+    const userMessages = state.messages.filter(m => m.getType() === "human");
+    const response = await designModel.invoke([systemMsg, ...userMessages]);
 
     const textContent = extractTextContent(response.content as any);
     if (textContent) {
@@ -158,6 +162,9 @@ export function buildMultiAgentGraph(
       content: "Writing component code...",
     });
 
+    // Track where this agent's messages start
+    const startIdx = state.engineerStartIdx >= 0 ? state.engineerStartIdx : state.messages.length;
+
     const contextMessage = state.designSpec
       ? `\n\nHere is the design specification to implement:\n${state.designSpec}`
       : "";
@@ -167,7 +174,12 @@ export function buildMultiAgentGraph(
       : "";
 
     const systemMsg = new SystemMessage(ENGINEER_SYSTEM_PROMPT + contextMessage + revisionContext);
-    const response = await engineerModel.invoke([systemMsg, ...state.messages]);
+    // Only pass the original user message + this agent's own tool-loop messages
+    const userMsg = state.messages.find(m => m.getType() === "human");
+    const agentMessages = startIdx < state.messages.length
+      ? state.messages.slice(startIdx)
+      : [];
+    const response = await engineerModel.invoke([systemMsg, ...(userMsg ? [userMsg] : []), ...agentMessages]);
 
     const textContent = extractTextContent(response.content as any);
     if (textContent) {
@@ -187,7 +199,7 @@ export function buildMultiAgentGraph(
       }
     }
 
-    return { messages: [response], currentAgent: "engineer" };
+    return { messages: [response], currentAgent: "engineer", engineerStartIdx: startIdx };
   }
 
   // Route engineer: if tool calls, run tools; if no tools and retries left, nudge; otherwise move on
@@ -218,8 +230,16 @@ export function buildMultiAgentGraph(
   async function qaNode(state: WorkflowStateType) {
     onEvent?.({ type: "agent_start", agent: AgentRole.QA, content: "Reviewing code quality..." });
 
+    // Track where this agent's messages start
+    const startIdx = state.qaStartIdx >= 0 ? state.qaStartIdx : state.messages.length;
+
     const systemMsg = new SystemMessage(QA_SYSTEM_PROMPT);
-    const response = await qaModel.invoke([systemMsg, ...state.messages]);
+    // Only pass the original user message + this agent's own tool-loop messages
+    const userMsg = state.messages.find(m => m.getType() === "human");
+    const agentMessages = startIdx < state.messages.length
+      ? state.messages.slice(startIdx)
+      : [];
+    const response = await qaModel.invoke([systemMsg, ...(userMsg ? [userMsg] : []), ...agentMessages]);
 
     const textContent = extractTextContent(response.content as any);
     if (textContent) {
@@ -239,7 +259,7 @@ export function buildMultiAgentGraph(
       }
     }
 
-    return { messages: [response], currentAgent: "qa" };
+    return { messages: [response], currentAgent: "qa", qaStartIdx: startIdx };
   }
 
   // Route QA: if tool calls, run tools; if no tools and retries left, nudge; otherwise decide
@@ -296,7 +316,7 @@ export function buildMultiAgentGraph(
         agent: AgentRole.QA,
         content: `Revision needed (iteration ${iteration}/${MAX_ITERATIONS}). Sending back to Engineer...`,
       });
-      return { reviewNotes, iterationCount: iteration, currentAgent: "engineer" };
+      return { reviewNotes, iterationCount: iteration, currentAgent: "engineer", engineerStartIdx: -1 };
     }
 
     onEvent?.({
@@ -342,7 +362,7 @@ export function buildMultiAgentGraph(
       engineer: "engineer",
     })
     .addEdge("design_tools", "design_post")
-    .addEdge("design_post", "design")
+    .addEdge("design_post", "engineer")
     .addEdge("design_nudge", "design")
     .addConditionalEdges("engineer", routeEngineer, {
       engineer_tools: "engineer_tools",
