@@ -8,10 +8,7 @@ interface MarkdownRendererProps {
   className?: string;
 }
 
-export function MarkdownRenderer({
-  content,
-  className,
-}: MarkdownRendererProps) {
+export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
   return (
     <div className={cn("prose leading-tight max-w-none", className)}>
       <ReactMarkdown

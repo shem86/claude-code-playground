@@ -7,15 +7,10 @@ export async function middleware(request: NextRequest) {
 
   // Protected routes that require authentication
   const protectedPaths = ["/api/projects", "/api/filesystem"];
-  const isProtectedPath = protectedPaths.some((path) =>
-    request.nextUrl.pathname.startsWith(path)
-  );
+  const isProtectedPath = protectedPaths.some((path) => request.nextUrl.pathname.startsWith(path));
 
   if (isProtectedPath && !session) {
-    return NextResponse.json(
-      { error: "Authentication required" },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
   return NextResponse.next();

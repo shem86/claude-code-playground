@@ -19,7 +19,6 @@ export { ${componentName} };
 `;
 }
 
-
 export function transformJSX(
   code: string,
   filename: string,
@@ -43,22 +42,19 @@ export function transformJSX(
     }
 
     // Remove CSS imports from code
-    processedCode = processedCode.replace(cssImportRegex, '');
+    processedCode = processedCode.replace(cssImportRegex, "");
 
     let match;
     while ((match = importRegex.exec(code)) !== null) {
       // Skip CSS files from regular imports
-      if (!match[1].endsWith('.css')) {
+      if (!match[1].endsWith(".css")) {
         imports.add(match[1]);
       }
     }
 
     const result = Babel.transform(processedCode, {
       filename,
-      presets: [
-        ["react", { runtime: "automatic" }],
-        ...(isTypeScript ? ["typescript"] : []),
-      ],
+      presets: [["react", { runtime: "automatic" }], ...(isTypeScript ? ["typescript"] : [])],
       plugins: [],
     });
 
@@ -75,10 +71,7 @@ export function transformJSX(
   }
 }
 
-export function createBlobURL(
-  code: string,
-  mimeType: string = "application/javascript"
-): string {
+export function createBlobURL(code: string, mimeType: string = "application/javascript"): string {
   const blob = new Blob([code], { type: mimeType });
   return URL.createObjectURL(blob);
 }
@@ -119,14 +112,14 @@ export function createImportMap(files: Map<string, string>): ImportMapResult {
         path,
         existingFiles
       );
-      
+
       if (error) {
         // Track error for this file
         errors.push({ path, error });
         // Skip processing this file entirely
         continue;
       }
-      
+
       // Normal successful transform
       const blobUrl = createBlobURL(code);
       transformedFiles.set(path, blobUrl);
@@ -135,10 +128,8 @@ export function createImportMap(files: Map<string, string>): ImportMapResult {
       if (missingImports) {
         missingImports.forEach((imp) => {
           // Check if this is a third-party package
-          const isPackage = !imp.startsWith(".") && 
-                            !imp.startsWith("/") && 
-                            !imp.startsWith("@/");
-          
+          const isPackage = !imp.startsWith(".") && !imp.startsWith("/") && !imp.startsWith("@/");
+
           if (isPackage) {
             // Add third-party packages directly to import map
             imports[imp] = `https://esm.sh/${imp}`;
@@ -189,7 +180,7 @@ export function createImportMap(files: Map<string, string>): ImportMapResult {
   for (const { from, cssPath } of allCssImports) {
     // Resolve CSS path relative to the importing file
     let resolvedPath = cssPath;
-    
+
     if (cssPath.startsWith("@/")) {
       // @/ alias points to root
       resolvedPath = cssPath.replace("@/", "/");
@@ -216,9 +207,8 @@ export function createImportMap(files: Map<string, string>): ImportMapResult {
     }
 
     // Check if this is a third-party package (no relative path indicators)
-    const isPackage = !importPath.startsWith(".") && 
-                      !importPath.startsWith("/") && 
-                      !importPath.startsWith("@/");
+    const isPackage =
+      !importPath.startsWith(".") && !importPath.startsWith("/") && !importPath.startsWith("@/");
 
     if (isPackage) {
       // Handle third-party packages from esm.sh
@@ -250,9 +240,7 @@ export function createImportMap(files: Map<string, string>): ImportMapResult {
     if (!found) {
       // Extract component name from path
       const match = importPath.match(/\/([^\/]+)$/);
-      const componentName = match
-        ? match[1]
-        : importPath.replace(/[^a-zA-Z0-9]/g, "");
+      const componentName = match ? match[1] : importPath.replace(/[^a-zA-Z0-9]/g, "");
 
       // Create placeholder module
       const placeholderCode = createPlaceholderModule(componentName);
@@ -270,7 +258,7 @@ export function createImportMap(files: Map<string, string>): ImportMapResult {
   return {
     importMap: JSON.stringify({ imports }, null, 2),
     styles: collectedStyles,
-    errors
+    errors,
   };
 }
 
@@ -278,7 +266,7 @@ export function createImportMap(files: Map<string, string>): ImportMapResult {
 function resolveRelativePath(fromDir: string, relativePath: string): string {
   const parts = fromDir.split("/").filter(Boolean);
   const relParts = relativePath.split("/");
-  
+
   for (const part of relParts) {
     if (part === "..") {
       parts.pop();
@@ -286,7 +274,7 @@ function resolveRelativePath(fromDir: string, relativePath: string): string {
       parts.push(part);
     }
   }
-  
+
   return "/" + parts.join("/");
 }
 
@@ -382,39 +370,47 @@ export function createPreviewHTML(
       color: #991b1b;
     }
   </style>
-  ${styles ? `<style>\n${styles}</style>` : ''}
+  ${styles ? `<style>\n${styles}</style>` : ""}
   <script type="importmap">
     ${importMap}
   </script>
 </head>
 <body>
-  ${errors.length > 0 ? `
+  ${
+    errors.length > 0
+      ? `
     <div class="syntax-errors">
       <h3>
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="flex-shrink: 0;">
           <path d="M10 0C4.48 0 0 4.48 0 10s4.48 10 10 10 10-4.48 10-10S15.52 0 10 0zm1 15h-2v-2h2v2zm0-4h-2V5h2v6z" fill="#dc2626"/>
         </svg>
-        Syntax Error${errors.length > 1 ? 's' : ''} (${errors.length})
+        Syntax Error${errors.length > 1 ? "s" : ""} (${errors.length})
       </h3>
-      ${errors.map(e => {
-        const locationMatch = e.error.match(/\((\d+:\d+)\)/);
-        const location = locationMatch ? locationMatch[1] : '';
-        const cleanError = e.error.replace(/\(\d+:\d+\)/, '').trim();
-        
-        return `
+      ${errors
+        .map((e) => {
+          const locationMatch = e.error.match(/\((\d+:\d+)\)/);
+          const location = locationMatch ? locationMatch[1] : "";
+          const cleanError = e.error.replace(/\(\d+:\d+\)/, "").trim();
+
+          return `
         <div class="error-item">
           <div class="error-path">
             ${e.path}
-            ${location ? `<span class="error-location">${location}</span>` : ''}
+            ${location ? `<span class="error-location">${location}</span>` : ""}
           </div>
-          <div class="error-message">${cleanError.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+          <div class="error-message">${cleanError.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
         </div>
       `;
-      }).join('')}
+        })
+        .join("")}
     </div>
-  ` : ''}
+  `
+      : ""
+  }
   <div id="root"></div>
-  ${errors.length === 0 ? `<script type="module">
+  ${
+    errors.length === 0
+      ? `<script type="module">
     import React from 'react';
     import ReactDOM from 'react-dom/client';
     
@@ -467,7 +463,9 @@ export function createPreviewHTML(
     }
 
     loadApp();
-  </script>` : ''}
+  </script>`
+      : ""
+  }
 </body>
 </html>`;
 }

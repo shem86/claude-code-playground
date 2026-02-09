@@ -11,7 +11,7 @@ interface CreateProjectInput {
 
 export async function createProject(input: CreateProjectInput) {
   const session = await getSession();
-  
+
   if (!session) {
     throw new Error("Unauthorized");
   }

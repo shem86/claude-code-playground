@@ -3,13 +3,7 @@
 import { useState } from "react";
 import { FileNode } from "@/lib/file-system";
 import { useFileSystem } from "@/lib/contexts/file-system-context";
-import {
-  ChevronRight,
-  ChevronDown,
-  Folder,
-  FolderOpen,
-  FileCode,
-} from "lucide-react";
+import { ChevronRight, ChevronDown, Folder, FolderOpen, FileCode } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 

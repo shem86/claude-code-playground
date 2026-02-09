@@ -405,17 +405,12 @@ export class VirtualFileSystem {
       const endLine = end === -1 ? lines.length : Math.min(lines.length, end);
 
       const viewedLines = lines.slice(startLine - 1, endLine);
-      return viewedLines
-        .map((line, index) => `${startLine + index}\t${line}`)
-        .join("\n");
+      return viewedLines.map((line, index) => `${startLine + index}\t${line}`).join("\n");
     }
 
     // Return full file with line numbers
     const lines = content.split("\n");
-    return (
-      lines.map((line, index) => `${index + 1}\t${line}`).join("\n") ||
-      "(empty file)"
-    );
+    return lines.map((line, index) => `${index + 1}\t${line}`).join("\n") || "(empty file)";
   }
 
   createFileWithParents(path: string, content: string = ""): string {
@@ -459,9 +454,7 @@ export class VirtualFileSystem {
 
     // Count occurrences
     const occurrences = (
-      content.match(
-        new RegExp(oldStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")
-      ) || []
+      content.match(new RegExp(oldStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) || []
     ).length;
 
     // Replace all occurrences
@@ -485,11 +478,7 @@ export class VirtualFileSystem {
     const lines = content.split("\n");
 
     // Validate insert_line
-    if (
-      insertLine === undefined ||
-      insertLine < 0 ||
-      insertLine > lines.length
-    ) {
+    if (insertLine === undefined || insertLine < 0 || insertLine > lines.length) {
       return `Error: Invalid line number: ${insertLine}. File has ${lines.length} lines.`;
     }
 

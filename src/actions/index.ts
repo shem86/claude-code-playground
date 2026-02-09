@@ -11,10 +11,7 @@ export interface AuthResult {
   error?: string;
 }
 
-export async function signUp(
-  email: string,
-  password: string
-): Promise<AuthResult> {
+export async function signUp(email: string, password: string): Promise<AuthResult> {
   try {
     // Validate input
     if (!email || !password) {
@@ -59,10 +56,7 @@ export async function signUp(
   }
 }
 
-export async function signIn(
-  email: string,
-  password: string
-): Promise<AuthResult> {
+export async function signIn(email: string, password: string): Promise<AuthResult> {
   try {
     // Validate input
     if (!email || !password) {

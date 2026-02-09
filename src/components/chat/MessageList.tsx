@@ -17,8 +17,12 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
         <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-50 mb-4 shadow-sm">
           <Bot className="h-7 w-7 text-blue-600" />
         </div>
-        <p className="text-neutral-900 font-semibold text-lg mb-2">Start a conversation to generate React components</p>
-        <p className="text-neutral-500 text-sm max-w-sm">I can help you create buttons, forms, cards, and more</p>
+        <p className="text-neutral-900 font-semibold text-lg mb-2">
+          Start a conversation to generate React components
+        </p>
+        <p className="text-neutral-500 text-sm max-w-sm">
+          I can help you create buttons, forms, cards, and more
+        </p>
       </div>
     );
   }
@@ -29,10 +33,7 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
         {messages.map((message) => (
           <div
             key={message.id || message.content}
-            className={cn(
-              "flex gap-4",
-              message.role === "user" ? "justify-end" : "justify-start"
-            )}
+            className={cn("flex gap-4", message.role === "user" ? "justify-end" : "justify-start")}
           >
             {message.role === "assistant" && (
               <div className="flex-shrink-0">
@@ -41,17 +42,21 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
                 </div>
               </div>
             )}
-            
-            <div className={cn(
-              "flex flex-col gap-2 max-w-[85%]",
-              message.role === "user" ? "items-end" : "items-start"
-            )}>
-              <div className={cn(
-                "rounded-xl px-4 py-3",
-                message.role === "user" 
-                  ? "bg-blue-600 text-white shadow-sm" 
-                  : "bg-white text-neutral-900 border border-neutral-200 shadow-sm"
-              )}>
+
+            <div
+              className={cn(
+                "flex flex-col gap-2 max-w-[85%]",
+                message.role === "user" ? "items-end" : "items-start"
+              )}
+            >
+              <div
+                className={cn(
+                  "rounded-xl px-4 py-3",
+                  message.role === "user"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "bg-white text-neutral-900 border border-neutral-200 shadow-sm"
+                )}
+              >
                 <div className="text-sm">
                   {message.parts ? (
                     <>
@@ -59,7 +64,9 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
                         switch (part.type) {
                           case "text":
                             return message.role === "user" ? (
-                              <span key={partIndex} className="whitespace-pre-wrap">{part.text}</span>
+                              <span key={partIndex} className="whitespace-pre-wrap">
+                                {part.text}
+                              </span>
                             ) : (
                               <MarkdownRenderer
                                 key={partIndex}
@@ -69,15 +76,23 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
                             );
                           case "reasoning":
                             return (
-                              <div key={partIndex} className="mt-3 p-3 bg-white/50 rounded-md border border-neutral-200">
-                                <span className="text-xs font-medium text-neutral-600 block mb-1">Reasoning</span>
+                              <div
+                                key={partIndex}
+                                className="mt-3 p-3 bg-white/50 rounded-md border border-neutral-200"
+                              >
+                                <span className="text-xs font-medium text-neutral-600 block mb-1">
+                                  Reasoning
+                                </span>
                                 <span className="text-sm text-neutral-700">{part.reasoning}</span>
                               </div>
                             );
                           case "tool-invocation":
                             const tool = part.toolInvocation;
                             return (
-                              <div key={partIndex} className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 bg-neutral-50 rounded-lg text-xs font-mono border border-neutral-200">
+                              <div
+                                key={partIndex}
+                                className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 bg-neutral-50 rounded-lg text-xs font-mono border border-neutral-200"
+                              >
                                 {tool.state === "result" && tool.result ? (
                                   <>
                                     <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
@@ -98,7 +113,9 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
                               </div>
                             );
                           case "step-start":
-                            return partIndex > 0 ? <hr key={partIndex} className="my-3 border-neutral-200" /> : null;
+                            return partIndex > 0 ? (
+                              <hr key={partIndex} className="my-3 border-neutral-200" />
+                            ) : null;
                           default:
                             return null;
                         }
@@ -129,7 +146,7 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
                 </div>
               </div>
             </div>
-            
+
             {message.role === "user" && (
               <div className="flex-shrink-0">
                 <div className="w-9 h-9 rounded-lg bg-blue-600 shadow-sm flex items-center justify-center">

@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function getProject(projectId: string) {
   const session = await getSession();
-  
+
   if (!session) {
     throw new Error("Unauthorized");
   }

@@ -2,10 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFileSystem } from "@/lib/contexts/file-system-context";
-import {
-  createImportMap,
-  createPreviewHTML,
-} from "@/lib/transform/jsx-transformer";
+import { createImportMap, createPreviewHTML } from "@/lib/transform/jsx-transformer";
 import { AlertCircle } from "lucide-react";
 
 export function PreviewFrame() {
@@ -68,9 +65,7 @@ export function PreviewFrame() {
         }
 
         if (!foundEntryPoint || !files.has(foundEntryPoint)) {
-          setError(
-            "No React component found. Create an App.jsx or index.jsx file to get started."
-          );
+          setError("No React component found. Create an App.jsx or index.jsx file to get started.");
           return;
         }
 
@@ -81,10 +76,7 @@ export function PreviewFrame() {
           const iframe = iframeRef.current;
 
           // Need both allow-scripts and allow-same-origin for blob URLs in import map
-          iframe.setAttribute(
-            "sandbox",
-            "allow-scripts allow-same-origin allow-forms"
-          );
+          iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms");
           iframe.srcdoc = previewHTML;
 
           setError(null);
@@ -118,9 +110,7 @@ export function PreviewFrame() {
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Welcome to UI Generator
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Welcome to UI Generator</h3>
             <p className="text-sm text-gray-600 mb-3">
               Start building React components with AI assistance
             </p>
@@ -138,9 +128,7 @@ export function PreviewFrame() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
             <AlertCircle className="h-8 w-8 text-gray-400" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            No Preview Available
-          </h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Preview Available</h3>
           <p className="text-sm text-gray-500">{error}</p>
           <p className="text-xs text-gray-400 mt-2">
             Start by creating a React component using the AI assistant
@@ -150,11 +138,5 @@ export function PreviewFrame() {
     );
   }
 
-  return (
-    <iframe
-      ref={iframeRef}
-      className="w-full h-full border-0 bg-white"
-      title="Preview"
-    />
-  );
+  return <iframe ref={iframeRef} className="w-full h-full border-0 bg-white" title="Preview" />;
 }

@@ -62,9 +62,7 @@ export function SignUpForm({ onSuccess }: SignUpFormProps) {
           disabled={isLoading}
           minLength={8}
         />
-        <p className="text-xs text-gray-500">
-          Must be at least 8 characters long
-        </p>
+        <p className="text-xs text-gray-500">Must be at least 8 characters long</p>
       </div>
 
       <div className="space-y-2">
