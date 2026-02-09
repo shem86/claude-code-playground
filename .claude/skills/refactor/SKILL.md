@@ -1,5 +1,5 @@
 ---
-name: ts-refactor
+name: refactor
 description: Refactor TypeScript and JavaScript code using software engineering best practices. Produces clean, maintainable, well-structured code. Use when the user asks to refactor, clean up, simplify, improve code quality, reduce complexity, make code more maintainable, remove duplication, apply design patterns, split large files, improve naming, or perform code review with actionable fixes. Covers structural refactoring, readability, design patterns, and performance-aware improvements.
 ---
 
