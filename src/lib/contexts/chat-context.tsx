@@ -104,7 +104,9 @@ export function ChatProvider({
   initialMessages = [],
 }: ChatContextProps & { children: ReactNode }) {
   const { fileSystem, handleToolCall, refreshFileSystem } = useFileSystem();
-  const [agentMode, setAgentMode] = useState<AgentMode>("single");
+  const [agentMode, setAgentMode] = useState<AgentMode>(
+    process.env.NEXT_PUBLIC_ENABLE_SINGLE_AGENT === "true" ? "single" : "multi"
+  );
   const [agentMessages, setAgentMessages] = useState<AgentMessage[]>([]);
   const [isMultiAgentRunning, setIsMultiAgentRunning] = useState(false);
   const [multiAgentMessages, setMultiAgentMessages] = useState<Message[]>(initialMessages);

@@ -6,6 +6,10 @@ import { Users, User } from "lucide-react";
 export function AgentModeToggle() {
   const { agentMode, setAgentMode, isMultiAgentRunning, status } = useChat();
 
+  if (process.env.NEXT_PUBLIC_ENABLE_SINGLE_AGENT !== "true") {
+    return null;
+  }
+
   const isDisabled = isMultiAgentRunning || status === "streaming" || status === "submitted";
 
   return (

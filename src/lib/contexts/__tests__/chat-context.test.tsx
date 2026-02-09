@@ -5,6 +5,9 @@ import { useFileSystem } from "../file-system-context";
 import { useChat as useAIChat } from "@ai-sdk/react";
 import * as anonTracker from "@/lib/anon-work-tracker";
 
+// Enable single agent mode for tests (matches pre-feature-flag default)
+vi.stubEnv("NEXT_PUBLIC_ENABLE_SINGLE_AGENT", "true");
+
 // Mock dependencies
 vi.mock("../file-system-context", () => ({
   useFileSystem: vi.fn(),
