@@ -1,12 +1,6 @@
 "use client";
 
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useEffect,
-} from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { VirtualFileSystem, FileNode } from "@/lib/file-system";
 
 interface ToolCall {
@@ -25,25 +19,22 @@ interface FileSystemContextType {
   getFileContent: (path: string) => string | null;
   getAllFiles: () => Map<string, string>;
   refreshTrigger: number;
+  refreshFileSystem: () => void;
   handleToolCall: (toolCall: ToolCall) => void;
   reset: () => void;
 }
 
-const FileSystemContext = createContext<FileSystemContextType | undefined>(
-  undefined
-);
+const FileSystemContext = createContext<FileSystemContextType | undefined>(undefined);
 
 export function FileSystemProvider({
   children,
-  fileSystem: providedFileSystem,
   initialData,
 }: {
   children: React.ReactNode;
-  fileSystem?: VirtualFileSystem;
   initialData?: Record<string, any>;
 }) {
   const [fileSystem] = useState(() => {
-    const fs = providedFileSystem || new VirtualFileSystem();
+    const fs = new VirtualFileSystem();
     if (initialData) {
       fs.deserializeFromNodes(initialData);
     }
@@ -142,73 +133,80 @@ export function FileSystemProvider({
     triggerRefresh();
   }, [fileSystem, triggerRefresh]);
 
+  const syncFileAfterEdit = useCallback(
+    (path: string, result: string) => {
+      if (result.startsWith("Error:")) return;
+      const content = fileSystem.readFile(path);
+      if (content !== null) {
+        updateFile(path, content);
+      }
+    },
+    [fileSystem, updateFile]
+  );
+
+  const handleStrReplaceEditor = useCallback(
+    (args: any) => {
+      const { command, path, file_text, old_str, new_str, insert_line } = args;
+
+      switch (command) {
+        case "create":
+          if (path && file_text !== undefined) {
+            const result = fileSystem.createFileWithParents(path, file_text);
+            if (!result.startsWith("Error:")) {
+              createFile(path, file_text);
+            }
+          }
+          break;
+        case "str_replace":
+          if (path && old_str !== undefined && new_str !== undefined) {
+            syncFileAfterEdit(path, fileSystem.replaceInFile(path, old_str, new_str));
+          }
+          break;
+        case "insert":
+          if (path && new_str !== undefined && insert_line !== undefined) {
+            syncFileAfterEdit(path, fileSystem.insertInFile(path, insert_line, new_str));
+          }
+          break;
+      }
+    },
+    [fileSystem, createFile, syncFileAfterEdit]
+  );
+
+  const handleFileManager = useCallback(
+    (args: any) => {
+      const { command, path, new_path } = args;
+
+      switch (command) {
+        case "rename":
+          if (path && new_path) {
+            renameFile(path, new_path);
+          }
+          break;
+        case "delete":
+          if (path) {
+            const success = fileSystem.deleteFile(path);
+            if (success) {
+              deleteFile(path);
+            }
+          }
+          break;
+      }
+    },
+    [fileSystem, renameFile, deleteFile]
+  );
+
   const handleToolCall = useCallback(
     (toolCall: ToolCall) => {
       const { toolName, args } = toolCall;
+      if (!args) return;
 
-      // Handle str_replace_editor tool
-      if (toolName === "str_replace_editor" && args) {
-        const { command, path, file_text, old_str, new_str, insert_line } = args;
-
-        switch (command) {
-          case "create":
-            if (path && file_text !== undefined) {
-              const result = fileSystem.createFileWithParents(path, file_text);
-              if (!result.startsWith("Error:")) {
-                createFile(path, file_text);
-              }
-            }
-            break;
-
-          case "str_replace":
-            if (path && old_str !== undefined && new_str !== undefined) {
-              const result = fileSystem.replaceInFile(path, old_str, new_str);
-              if (!result.startsWith("Error:")) {
-                const content = fileSystem.readFile(path);
-                if (content !== null) {
-                  updateFile(path, content);
-                }
-              }
-            }
-            break;
-
-          case "insert":
-            if (path && new_str !== undefined && insert_line !== undefined) {
-              const result = fileSystem.insertInFile(path, insert_line, new_str);
-              if (!result.startsWith("Error:")) {
-                const content = fileSystem.readFile(path);
-                if (content !== null) {
-                  updateFile(path, content);
-                }
-              }
-            }
-            break;
-        }
-      }
-
-      // Handle file_manager tool
-      if (toolName === "file_manager" && args) {
-        const { command, path, new_path } = args;
-
-        switch (command) {
-          case "rename":
-            if (path && new_path) {
-              renameFile(path, new_path);
-            }
-            break;
-
-          case "delete":
-            if (path) {
-              const success = fileSystem.deleteFile(path);
-              if (success) {
-                deleteFile(path);
-              }
-            }
-            break;
-        }
+      if (toolName === "str_replace_editor") {
+        handleStrReplaceEditor(args);
+      } else if (toolName === "file_manager") {
+        handleFileManager(args);
       }
     },
-    [fileSystem, createFile, updateFile, deleteFile, renameFile]
+    [handleStrReplaceEditor, handleFileManager]
   );
 
   return (
@@ -224,6 +222,7 @@ export function FileSystemProvider({
         getFileContent,
         getAllFiles,
         refreshTrigger,
+        refreshFileSystem: triggerRefresh,
         handleToolCall,
         reset,
       }}

@@ -429,10 +429,7 @@ export default function App() {
 
     // Collect all stream parts
     const parts: LanguageModelV1StreamPart[] = [];
-    for await (const part of this.generateMockStream(
-      options.prompt,
-      userPrompt
-    )) {
+    for await (const part of this.generateMockStream(options.prompt, userPrompt)) {
       parts.push(part);
     }
 
@@ -506,10 +503,13 @@ export default function App() {
   }
 }
 
-export function getLanguageModel() {
+export function isMockProvider(): boolean {
   const apiKey = process.env.ANTHROPIC_API_KEY;
+  return !apiKey || apiKey.trim() === "";
+}
 
-  if (!apiKey || apiKey.trim() === "") {
+export function getLanguageModel() {
+  if (isMockProvider()) {
     console.log("No ANTHROPIC_API_KEY found, using mock provider");
     return new MockLanguageModel("mock-claude-sonnet-4-0");
   }

@@ -5,7 +5,7 @@ import { buildStrReplaceTool } from "@/lib/tools/str-replace";
 import { buildFileManagerTool } from "@/lib/tools/file-manager";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { getLanguageModel } from "@/lib/provider";
+import { getLanguageModel, isMockProvider } from "@/lib/provider";
 import { generationPrompt } from "@/lib/prompts/generation";
 
 export async function POST(req: Request) {
@@ -13,8 +13,7 @@ export async function POST(req: Request) {
     messages,
     files,
     projectId,
-  }: { messages: any[]; files: Record<string, FileNode>; projectId?: string } =
-    await req.json();
+  }: { messages: any[]; files: Record<string, FileNode>; projectId?: string } = await req.json();
 
   messages.unshift({
     role: "system",
@@ -30,14 +29,13 @@ export async function POST(req: Request) {
 
   const model = getLanguageModel();
   // Use fewer steps for mock provider to prevent repetition
-  const isMockProvider = !process.env.ANTHROPIC_API_KEY;
   const result = streamText({
     model,
     messages,
     maxTokens: 10_000,
-    maxSteps: isMockProvider ? 4 : 40,
-    onError: (err: any) => {
-      console.error(err);
+    maxSteps: isMockProvider() ? 4 : 40,
+    onError: ({ error }) => {
+      console.error(error);
     },
     tools: {
       str_replace_editor: buildStrReplaceTool(fileSystem),
