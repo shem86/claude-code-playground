@@ -1,5 +1,5 @@
 ---
-name: langgraph-multi-agent
+name: langgraph
 description: Expert-level guidance for designing, building, and debugging multi-agent systems using LangChain.js and LangGraph.js. Covers architecture philosophy (supervisor, swarm, custom graph, functional API), StateGraph API, Annotation/StateSchema/reducers, streaming (SSE, multiple modes, custom writer), tool calling (ToolNode, bindTools, tool()), checkpointing/memory, prebuilt agents (createAgent, createReactAgent, createSupervisor, createSwarm), human-in-the-loop (interrupt/Command), subgraphs, error handling, and production hardening. Use when the user mentions: multi-agent, multi agent, LangChain, LangGraph, agent orchestration, supervisor pattern, swarm agents, agent handoff, StateGraph, ToolNode, createReactAgent, createAgent, agent streaming, agent checkpointing, agent memory, agentic workflows, agent loops, functional API, entrypoint, interrupt, human-in-the-loop, or any LangChain/LangGraph library usage.
 ---
 
