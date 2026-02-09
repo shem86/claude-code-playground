@@ -39,7 +39,7 @@ const agent = createReactAgent({
 ## Key Differences
 
 | Aspect | `createAgent` (v1) | `createReactAgent` (legacy) |
-|--------|--------------------|-----------------------------|
+| ------ | ------------------ | --------------------------- |
 | Package | `langchain` | `@langchain/langgraph/prebuilt` |
 | Model param | `model: "claude-haiku-4-5"` (string) | `llm: new ChatAnthropic(...)` (instance) |
 | Prompt param | `systemPrompt` | `prompt` |
