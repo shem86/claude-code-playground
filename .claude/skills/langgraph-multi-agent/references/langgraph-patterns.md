@@ -3,13 +3,16 @@
 ## Table of Contents
 
 - [StateGraph and Annotation](#stategraph-and-annotation)
+- [StateSchema (v1)](#stateschema-v1)
 - [MessagesAnnotation](#messagesannotation)
 - [Nodes and Edges](#nodes-and-edges)
 - [Conditional Edges](#conditional-edges)
 - [Command and Send](#command-and-send)
 - [Tool Calling](#tool-calling)
 - [ToolNode and toolsCondition](#toolnode-and-toolscondition)
+- [Functional API](#functional-api)
 - [Streaming](#streaming)
+- [Human-in-the-Loop](#human-in-the-loop)
 - [Checkpointing and Memory](#checkpointing-and-memory)
 - [Prebuilt Agents](#prebuilt-agents)
 
@@ -17,7 +20,7 @@
 
 ## StateGraph and Annotation
 
-### Define State
+### Define State with Annotation.Root
 
 ```typescript
 import { StateGraph, Annotation, MessagesAnnotation, START, END } from "@langchain/langgraph";
@@ -54,6 +57,56 @@ const graph = new StateGraph(MyState)
 
 ---
 
+## StateSchema (v1)
+
+`StateSchema` is the v1 recommended approach for defining state. It uses Zod (or any Standard Schema-compliant library) and provides dedicated value types.
+
+```typescript
+import { StateSchema, ReducedValue, MessagesValue } from "@langchain/langgraph";
+import * as z from "zod";
+
+const State = new StateSchema({
+  messages: MessagesValue,
+  currentStep: z.string(),
+  count: z.number().default(0),
+  history: new ReducedValue(
+    z.array(z.string()).default(() => []),
+    {
+      inputSchema: z.string(),
+      reducer: (current, next) => [...current, next],
+    }
+  ),
+});
+
+// Extract types for use in node functions
+type MyState = typeof State.State;
+type MyUpdate = typeof State.Update;
+
+const graph = new StateGraph(State)
+  .addNode("agent", (state: MyState) => ({ count: state.count + 1 }))
+  .addEdge(START, "agent")
+  .addEdge("agent", END)
+  .compile();
+```
+
+**When to use which:**
+- `Annotation.Root` — familiar API, well-tested, works everywhere. Use when extending `MessagesAnnotation.spec`.
+- `StateSchema` — v1 recommended, cleaner Zod integration, supports `ReducedValue`, `MessagesValue`, `UntrackedValue`. Use for new projects.
+
+### Runtime Context with StateSchema
+
+Pass dependencies (model name, DB connection) via `contextSchema`:
+
+```typescript
+const ContextSchema = z.object({
+  llm: z.union([z.literal("openai"), z.literal("anthropic")]),
+});
+
+const graph = new StateGraph(State, ContextSchema);
+```
+
+---
+
 ## MessagesAnnotation
 
 Built-in annotation with `messagesStateReducer` that handles:
@@ -74,7 +127,7 @@ const ExtendedState = Annotation.Root({
 });
 ```
 
-**Note:** Use `.spec` when spreading into `Annotation.Root()`.
+**Note:** Use `.spec` when spreading into `Annotation.Root()`. With `StateSchema`, use `MessagesValue` instead.
 
 ---
 
@@ -83,10 +136,12 @@ const ExtendedState = Annotation.Root({
 ### Node Function Signature
 
 ```typescript
-// Nodes receive state and optionally RunnableConfig
+// Nodes receive state and optionally LangGraphRunnableConfig
+import type { LangGraphRunnableConfig } from "@langchain/langgraph";
+
 async function myNode(
   state: typeof MyState.State,
-  config?: RunnableConfig
+  config?: LangGraphRunnableConfig
 ): Promise<Partial<typeof MyState.State>> {
   // Return only the keys you want to update
   return { customField: "updated" };
@@ -162,6 +217,14 @@ function myNode(state) {
 }
 ```
 
+When using `Command` in nodes, you must annotate the return type for TypeScript:
+
+```typescript
+async function myNode(state: typeof State.State): Promise<Command> {
+  return new Command({ goto: "next_node", update: { field: "value" } });
+}
+```
+
 ### Send: Dynamic Fan-Out
 
 ```typescript
@@ -188,7 +251,7 @@ import { z } from "zod";
 
 const myTool = tool(
   async ({ query }) => {
-    return `Result for: ${query}`;
+    return `Result for: ${query}`;  // Must return string
   },
   {
     name: "search",
@@ -212,6 +275,8 @@ const myTool = new DynamicStructuredTool({
 });
 ```
 
+**Prefer `tool()` over `DynamicStructuredTool`** — simpler API, fewer TypeScript issues. Only use `DynamicStructuredTool` when you need class-based tool features. For complex Zod schemas, consider splitting into smaller sub-schemas to avoid TS2589.
+
 ### Bind Tools to Model
 
 ```typescript
@@ -219,6 +284,24 @@ const model = new ChatAnthropic({ model: "claude-haiku-4-5" });
 const tools = [myTool];
 const modelWithTools = model.bindTools(tools);
 // bindTools returns a NEW model instance -- always use the return value
+```
+
+### Custom Streaming from Tools
+
+Tools can emit custom data via `config.writer`:
+
+```typescript
+import type { LangGraphRunnableConfig } from "@langchain/langgraph";
+
+const myTool = tool(
+  async (input, config: LangGraphRunnableConfig) => {
+    config.writer?.(`Processing: ${input.query}`);
+    const result = await doWork(input.query);
+    config.writer?.(`Done processing`);
+    return result;
+  },
+  { name: "search", description: "Search", schema: z.object({ query: z.string() }) }
+);
 ```
 
 ---
@@ -270,16 +353,84 @@ const graph = new StateGraph(MessagesAnnotation)
 
 ---
 
+## Functional API
+
+The Functional API lets you add LangGraph features (persistence, streaming, HITL) to imperative code without building a graph. It uses two primitives:
+
+- **`entrypoint`** — defines a workflow entry function, manages execution flow and interrupts
+- **`task`** — a discrete unit of work (API call, computation) that can be checkpointed
+
+```typescript
+import { entrypoint, task } from "@langchain/langgraph/func";
+import { MemorySaver } from "@langchain/langgraph";
+import type { LangGraphRunnableConfig } from "@langchain/langgraph";
+
+const checkpointer = new MemorySaver();
+
+const processStep = task("processStep", async (input: string) => {
+  return { processed: input.toLowerCase().trim() };
+});
+
+const classifyStep = task("classifyStep", async (text: string) => {
+  return text.includes("urgent") ? "high" : "normal";
+});
+
+const workflow = entrypoint(
+  { checkpointer, name: "myWorkflow" },
+  async (userInput: string, config: LangGraphRunnableConfig) => {
+    // Standard control flow — no graph structure needed
+    const processed = await processStep(userInput);
+    const priority = await classifyStep(processed.processed);
+
+    // Custom streaming
+    config.writer?.(`Priority: ${priority}`);
+
+    if (priority === "high") {
+      return await handleUrgent(processed);
+    }
+    return await handleNormal(processed);
+  }
+);
+
+// Invoke with thread_id for checkpointing
+const result = await workflow.invoke("Process this!", {
+  configurable: { thread_id: "thread-1" },
+});
+```
+
+### Streaming with Functional API
+
+```typescript
+for await (const [mode, chunk] of await workflow.stream(
+  { x: 5 },
+  { streamMode: ["custom", "updates"], configurable: { thread_id: "abc" } }
+)) {
+  console.log(`${mode}: ${JSON.stringify(chunk)}`);
+}
+```
+
+### When to Use Functional API vs Graph API
+
+| Aspect | Functional API | Graph API |
+|--------|---------------|-----------|
+| Control flow | Standard if/for/function calls | Explicit nodes and edges |
+| State management | Scoped to function, no reducers needed | Shared state with reducers |
+| Checkpointing | Task results saved to entrypoint checkpoint | New checkpoint per superstep |
+| Visualization | Not supported (dynamic at runtime) | Graph can be visualized |
+| Best for | Linear workflows, existing code integration | Complex routing, fan-out, multi-agent |
+
+---
+
 ## Streaming
 
 ### Stream Modes
 
 | Mode | Description | Use Case |
 |------|-------------|----------|
-| `"values"` | Full state after each node | Debugging, state inspection |
+| `"values"` | Full state after each superstep | Debugging, state inspection |
 | `"updates"` | Delta from each node | Efficient state tracking |
-| `"messages"` | Chat messages, token-by-token | Chatbot UIs |
-| `"events"` | Detailed execution events | Logging, analytics |
+| `"messages"` | LLM tokens + metadata | Chatbot UIs |
+| `"custom"` | Arbitrary data via `config.writer?.()` | Progress updates, tool status |
 | `"debug"` | Full debug traces | Development debugging |
 
 ### Basic Streaming
@@ -302,6 +453,53 @@ for await (const chunk of await graph.stream(
 }
 ```
 
+### Multiple Stream Modes (Combined)
+
+Pass an array to get tuples of `[mode, chunk]`:
+
+```typescript
+for await (const [mode, chunk] of await graph.stream(
+  { messages: [{ role: "user", content: "Hello" }] },
+  { streamMode: ["updates", "messages", "custom"] }
+)) {
+  switch (mode) {
+    case "updates":
+      console.log("State update:", chunk);
+      break;
+    case "messages":
+      // chunk is [token, metadata]
+      console.log("Token:", chunk);
+      break;
+    case "custom":
+      console.log("Custom:", chunk);
+      break;
+  }
+}
+```
+
+### Custom Streaming with `config.writer`
+
+Emit arbitrary data from inside nodes or tools:
+
+```typescript
+async function myNode(
+  state: typeof State.State,
+  config: LangGraphRunnableConfig
+) {
+  config.writer?.({ type: "status", message: "Processing..." });
+  const result = await doWork(state);
+  config.writer?.({ type: "status", message: "Done" });
+  return { result };
+}
+
+// Must include "custom" in streamMode to receive writer data
+for await (const [mode, chunk] of await graph.stream(input, {
+  streamMode: ["updates", "custom"],
+})) {
+  // ...
+}
+```
+
 ### SSE to Client (Next.js API Route)
 
 ```typescript
@@ -318,11 +516,16 @@ export async function POST(req: Request) {
     }
   }
 
-  // Launch graph in background
+  // Stream graph execution to client
   (async () => {
     try {
-      const result = await graph.invoke({ messages });
-      await sendEvent({ type: "done", result });
+      for await (const [mode, chunk] of await graph.stream(
+        { messages },
+        { streamMode: ["updates", "custom"] }
+      )) {
+        await sendEvent({ mode, chunk });
+      }
+      await sendEvent({ type: "done" });
     } catch (error) {
       await sendEvent({ type: "error", message: String(error) });
     } finally {
@@ -353,7 +556,110 @@ for await (const event of graph.streamEvents(
 }
 ```
 
-**Caveat:** `streamEvents` has inconsistencies with `ChatAnthropic`. Prefer custom SSE or `graph.stream()` with `streamMode: "messages"`.
+**Note:** `streamEvents` may have inconsistencies with some providers. Prefer `graph.stream()` with `streamMode: "messages"` or combined modes for production use.
+
+---
+
+## Human-in-the-Loop
+
+### interrupt() — Pause Graph Execution
+
+The `interrupt()` function pauses execution and surfaces a value to the caller. Requires a checkpointer and thread ID.
+
+```typescript
+import { interrupt } from "@langchain/langgraph";
+import { MemorySaver, Command } from "@langchain/langgraph";
+
+async function approvalNode(state: typeof State.State) {
+  // Pause execution — value is surfaced in __interrupt__ field
+  const decision = interrupt({
+    action: "delete_file",
+    args: { path: state.filePath },
+    description: "Please review this action",
+  });
+
+  // When resumed, Command({ resume: ... }) provides the value here
+  if (decision === "approve") {
+    return { approved: true };
+  }
+  return { approved: false };
+}
+
+const graph = new StateGraph(State)
+  .addNode("approval", approvalNode)
+  // ... other nodes
+  .compile({ checkpointer: new MemorySaver() });
+
+// First invocation — runs until interrupt
+const config = { configurable: { thread_id: "thread-1" } };
+const result = await graph.invoke({ messages: [...] }, config);
+// result.__interrupt__ contains the interrupt payload
+
+// Resume with decision
+const resumed = await graph.invoke(
+  new Command({ resume: "approve" }),
+  config  // Same thread_id!
+);
+```
+
+### humanInTheLoopMiddleware with createAgent (v1)
+
+Higher-level API for tool approval — no manual `interrupt()` needed:
+
+```typescript
+import { createAgent, humanInTheLoopMiddleware } from "langchain";
+import { MemorySaver, Command } from "@langchain/langgraph";
+
+const agent = createAgent({
+  model: "claude-haiku-4-5",
+  tools: [searchTool, deleteTool],
+  middleware: [
+    humanInTheLoopMiddleware({
+      interruptOn: {
+        delete_tool: { allowAccept: true, allowEdit: true, allowRespond: true },
+        search: false,  // auto-approve
+      },
+    }),
+  ],
+  checkpointer: new MemorySaver(),
+});
+
+const config = { configurable: { thread_id: "session-1" } };
+
+// Runs until a delete_tool call triggers interrupt
+let result = await agent.invoke(
+  { messages: [{ role: "user", content: "Delete temp.txt" }] },
+  config
+);
+
+// Resume with approval
+result = await agent.invoke(
+  new Command({ resume: { decisions: [{ type: "approve" }] } }),
+  config
+);
+```
+
+### Critical Rules for interrupt()
+
+- **Requires checkpointer** — will fail without one
+- **Same thread_id** to resume — different thread_id starts fresh
+- **Payload must be JSON-serializable**
+- **Not available in `@langchain/langgraph/web`** (browser environments)
+- **Do NOT reorder interrupt calls** within a node — matching is index-based
+- **Do NOT conditionally skip** interrupt calls — keep them deterministic across executions
+- **Do NOT loop** interrupt calls with non-deterministic logic
+
+### Static Breakpoints (Alternative)
+
+For simpler pause-before/after patterns without custom logic:
+
+```typescript
+const graph = myGraph.compile({
+  checkpointer: new MemorySaver(),
+  interruptBefore: ["dangerous_node"],  // pause before this node
+  interruptAfter: ["review_node"],      // pause after this node
+});
+```
 
 ---
 
@@ -374,7 +680,21 @@ const result = await graph.invoke(
 );
 ```
 
+### Production Checkpointers
+
+```typescript
+// SQLite (file-based persistence)
+import { SqliteSaver } from "@langchain/langgraph-checkpoint-sqlite";
+const checkpointer = SqliteSaver.fromConnString("./checkpoints.db");
+
+// PostgreSQL (production-grade)
+import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
+const checkpointer = PostgresSaver.fromConnString(process.env.DATABASE_URL);
+```
+
 ### Long-Term Memory (Cross-Thread)
+
+`InMemoryStore` provides cross-thread key-value storage:
 
 ```typescript
 import { InMemoryStore } from "@langchain/langgraph";
@@ -394,7 +714,35 @@ console.log(state.values.messages);
 
 ## Prebuilt Agents
 
-### createReactAgent
+### createAgent (v1 — Preferred)
+
+From the `langchain` package. Returns a compiled graph. Supports middleware.
+
+```typescript
+import { createAgent } from "langchain";
+
+const agent = createAgent({
+  model: "claude-haiku-4-5",         // model name string (resolved automatically)
+  tools: [myTool],
+  systemPrompt: "You are a helpful assistant.",
+  // Optional:
+  middleware: [humanInTheLoopMiddleware(...)],
+  checkpointer: new MemorySaver(),
+});
+
+const result = await agent.invoke({
+  messages: [{ role: "user", content: "Hello" }],
+});
+```
+
+**Key differences from `createReactAgent`:**
+- Import: `"langchain"` (not `@langchain/langgraph/prebuilt`)
+- `systemPrompt` replaces `prompt`
+- `model` accepts string names (not just model instances)
+- `middleware` array for HITL, summarization, PII redaction
+- Streaming node name is `"model"` (not `"agent"`)
+
+### createReactAgent (Legacy — Still Works)
 
 Returns a **compiled** graph (do NOT call `.compile()` on it).
 
@@ -402,16 +750,11 @@ Returns a **compiled** graph (do NOT call `.compile()` on it).
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 
 const agent = createReactAgent({
-  llm: model,
+  llm: model,                         // ChatAnthropic instance
   tools: [myTool],
-  prompt: "You are a helpful assistant.",     // simple system message
-  // OR: messageModifier: new SystemMessage("..."),  // for more control
-  // checkpointSaver: new MemorySaver(),     // for multi-turn
-  // name: "my_agent",                       // required for multi-agent
-});
-
-const result = await agent.invoke({
-  messages: [{ role: "user", content: "Hello" }],
+  prompt: "You are a helpful assistant.",
+  // name: "my_agent",                // required for multi-agent
+  // checkpointSaver: new MemorySaver(),
 });
 ```
 
@@ -454,8 +797,9 @@ const app = swarm.compile({ checkpointer: new MemorySaver() });
 
 ### Return Type Summary
 
-| Function | Returns | Need `.compile()`? |
-|----------|---------|-------------------|
-| `createReactAgent` | Compiled graph | No |
-| `createSupervisor` | `StateGraph` | Yes |
-| `createSwarm` | `StateGraph` | Yes |
+| Function | Returns | Need `.compile()`? | Package |
+|----------|---------|-------------------|---------|
+| `createAgent` | Compiled graph | No | `langchain` |
+| `createReactAgent` | Compiled graph | No | `@langchain/langgraph/prebuilt` |
+| `createSupervisor` | `StateGraph` | Yes | `@langchain/langgraph-supervisor` |
+| `createSwarm` | `StateGraph` | Yes | `@langchain/langgraph-swarm` |

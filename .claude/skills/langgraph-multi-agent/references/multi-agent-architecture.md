@@ -8,8 +8,10 @@
 - [Pattern 1: Custom StateGraph](#pattern-1-custom-stategraph)
 - [Pattern 2: Prebuilt Supervisor](#pattern-2-prebuilt-supervisor)
 - [Pattern 3: Swarm with Handoffs](#pattern-3-swarm-with-handoffs)
+- [Pattern 4: Functional API](#pattern-4-functional-api)
 - [Pattern Selection Guide](#pattern-selection-guide)
 - [Communication Patterns](#communication-patterns)
+- [Subgraphs](#subgraphs)
 - [Scaling Considerations](#scaling-considerations)
 
 ---
@@ -41,13 +43,13 @@ Use single-agent when:
 
 ## Pattern Comparison
 
-| Aspect | Custom StateGraph | Supervisor | Swarm |
-|--------|------------------|------------|-------|
-| Control | Full | Medium | Low |
-| Complexity | High | Low | Low |
-| Routing | Explicit edges | LLM decides | Agents decide |
-| Latency overhead | Minimal | 1 extra LLM call/route | ~40% faster than supervisor |
-| Best for | Fixed workflows | Dynamic task delegation | Peer-to-peer collaboration |
+| Aspect | Custom StateGraph | Supervisor | Swarm | Functional API |
+|--------|------------------|------------|-------|----------------|
+| Control | Full | Medium | Low | Full |
+| Complexity | High | Low | Low | Low |
+| Routing | Explicit edges | LLM decides | Agents decide | Code logic |
+| Latency overhead | Minimal | 1 extra LLM call/route | No routing call | Minimal |
+| Best for | Fixed workflows | Dynamic task delegation | Peer-to-peer collaboration | Linear multi-step |
 
 ## Pattern 1: Custom StateGraph
 
@@ -114,7 +116,7 @@ const graph = new StateGraph(WorkflowState)
 
 **Key design decisions**:
 - Each agent gets its own system prompt prepended at invocation time
-- Routing functions inspect the last message to decide: tool call → tools node, or advance to next agent
+- Routing functions inspect the last message to decide: tool call -> tools node, or advance to next agent
 - Iteration counters prevent infinite revision loops
 - `handleToolErrors: true` lets the LLM retry on invalid tool calls
 
@@ -124,28 +126,29 @@ An orchestrator LLM decides which agent to invoke next. Minimal code, maximum fl
 
 **When to use**: Dynamic task routing where the order of agents depends on the input.
 
+### Using createAgent (v1)
+
 ```typescript
 import { createSupervisor } from "@langchain/langgraph-supervisor";
-import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { createAgent } from "langchain";
 import { ChatAnthropic } from "@langchain/anthropic";
 
 const model = new ChatAnthropic({ model: "claude-haiku-4-5" });
 
-const designAgent = createReactAgent({
-  llm: model,
+const designAgent = createAgent({
+  model: "claude-haiku-4-5",
   tools: [designTool],
   name: "designer",
-  prompt: "You are a UI/UX design expert.",
+  systemPrompt: "You are a UI/UX design expert.",
 });
 
-const engineerAgent = createReactAgent({
-  llm: model,
+const engineerAgent = createAgent({
+  model: "claude-haiku-4-5",
   tools: [strReplaceTool, fileManagerTool],
   name: "engineer",
-  prompt: "You are a React engineer.",
+  systemPrompt: "You are a React engineer.",
 });
 
-// createSupervisor returns a StateGraph -- must .compile()
 const supervisorGraph = createSupervisor({
   agents: [designAgent, engineerAgent],
   llm: model,
@@ -156,6 +159,21 @@ const app = supervisorGraph.compile();
 const result = await app.invoke({
   messages: [{ role: "user", content: "Build a todo app" }],
 });
+```
+
+### Using createReactAgent (Legacy)
+
+```typescript
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
+
+const designAgent = createReactAgent({
+  llm: model,
+  tools: [designTool],
+  name: "designer",
+  prompt: "You are a UI/UX design expert.",
+});
+
+// Same createSupervisor usage as above
 ```
 
 **Trade-offs**:
@@ -202,23 +220,94 @@ const result = await app.invoke(
 ```
 
 **Trade-offs**:
-- ~40% faster than supervisor (no routing LLM call)
+- No routing LLM call overhead (agents decide directly)
 - Less centralized control -- agents decide when to hand off
 - Requires checkpointer for multi-turn conversations
+- Can be unpredictable if agents disagree about handoff timing
+
+## Pattern 4: Functional API
+
+Use standard imperative code with `entrypoint` and `task` for multi-step workflows. No graph structure needed.
+
+**When to use**: Linear pipelines, existing code integration, or when graph structure adds unnecessary complexity.
+
+```typescript
+import { entrypoint, task } from "@langchain/langgraph/func";
+import { MemorySaver } from "@langchain/langgraph";
+import { ChatAnthropic } from "@langchain/anthropic";
+import type { LangGraphRunnableConfig } from "@langchain/langgraph";
+
+const model = new ChatAnthropic({ model: "claude-haiku-4-5" });
+const checkpointer = new MemorySaver();
+
+const designStep = task("design", async (userRequest: string) => {
+  const designModel = model.bindTools([designTool]);
+  const response = await designModel.invoke([
+    new SystemMessage("You are a UI designer."),
+    new HumanMessage(userRequest),
+  ]);
+  return response.content;
+});
+
+const implementStep = task("implement", async (designSpec: string) => {
+  const engineerModel = model.bindTools([strReplaceTool]);
+  const response = await engineerModel.invoke([
+    new SystemMessage("You are a React engineer. Implement this design spec."),
+    new HumanMessage(designSpec),
+  ]);
+  return response.content;
+});
+
+const pipeline = entrypoint(
+  { checkpointer, name: "designPipeline" },
+  async (userRequest: string, config: LangGraphRunnableConfig) => {
+    config.writer?.({ phase: "design", status: "started" });
+    const spec = await designStep(userRequest);
+
+    config.writer?.({ phase: "implement", status: "started" });
+    const implementation = await implementStep(spec);
+
+    return { spec, implementation };
+  }
+);
+
+const result = await pipeline.invoke("Build a login form", {
+  configurable: { thread_id: "session-1" },
+});
+```
+
+**Trade-offs**:
+- Simplest code — standard if/for/function calls
+- No graph visualization
+- Task results are checkpointed automatically
+- Less suitable for complex routing or fan-out patterns
+- Custom streaming via `config.writer?.()`
 
 ## Pattern Selection Guide
 
 ```
 Is the agent sequence fixed and predictable?
-├── Yes → Custom StateGraph
-└── No
-    ├── Do you need a central orchestrator deciding routing?
-    │   ├── Yes → Supervisor
-    │   └── No → Swarm
-    └── Are agents peers that hand off directly?
-        ├── Yes → Swarm
-        └── No → Supervisor
+├── Yes
+│   ├── Is it a simple linear pipeline?
+│   │   ├── Yes → Functional API (Pattern 4)
+│   │   └── No (has loops, fan-out) → Custom StateGraph (Pattern 1)
+│   └── Does it need complex routing between phases?
+│       ├── Yes → Custom StateGraph (Pattern 1)
+│       └── No → Functional API (Pattern 4)
+└── No (dynamic routing)
+    ├── Should a central LLM decide routing?
+    │   ├── Yes → Supervisor (Pattern 2)
+    │   └── No
+    │       └── Should agents decide when to hand off?
+    │           ├── Yes → Swarm (Pattern 3)
+    │           └── No → Supervisor (Pattern 2)
 ```
+
+**Additional criteria:**
+- Need graph visualization? -> StateGraph (Pattern 1 or 2)
+- Need to wrap existing code with minimal changes? -> Functional API (Pattern 4)
+- Need human-in-the-loop at tool level? -> Any pattern with `interrupt()` or `humanInTheLoopMiddleware`
+- Latency-sensitive? -> Custom StateGraph (Pattern 1) or Functional API (Pattern 4) avoid extra LLM routing calls
 
 ## Communication Patterns
 
@@ -242,19 +331,21 @@ const State = Annotation.Root({
 });
 ```
 
+This prevents agents from accidentally overwriting each other's work and makes the data flow explicit.
+
 ### Command-Based Routing
 Nodes can update state AND choose the next node in a single return:
 
 ```typescript
 import { Command } from "@langchain/langgraph";
 
-function qaNode(state) {
+async function qaNode(state: typeof State.State): Promise<Command> {
   if (state.iterationCount >= MAX_ITERATIONS) {
     return new Command({ goto: END });
   }
   if (needsRevision) {
     return new Command({
-      update: { iterationCount: state.iterationCount + 1 },
+      update: { iterationCount: state.iterationCount + 1, qaFeedback: feedback },
       goto: "engineer",
     });
   }
@@ -262,14 +353,100 @@ function qaNode(state) {
 }
 ```
 
+When using `Command`, the node must be registered with the graph specifying valid destinations, or use `addConditionalEdges`.
+
+### Message Filtering
+Agents don't need to see all messages. Filter before passing to the LLM:
+
+```typescript
+async function engineerNode(state: typeof State.State) {
+  // Only pass the latest design spec + user messages
+  const relevantMessages = state.messages.filter(
+    (m) => m._getType() === "human" || m.content.includes("[DESIGN SPEC]")
+  );
+  const response = await engineerModel.invoke([
+    new SystemMessage("You are a React engineer."),
+    ...relevantMessages,
+  ]);
+  return { messages: [response] };
+}
+```
+
+## Subgraphs
+
+A subgraph is a compiled graph used as a node in another graph. Useful for:
+- Building multi-agent systems with isolated state
+- Reusing a set of nodes across multiple graphs
+- Team-based development (each team owns a subgraph)
+
+### Add Compiled Graph as Node
+
+When parent and child share state keys (e.g., both have `messages`), add the compiled graph directly:
+
+```typescript
+const childGraph = new StateGraph(MessagesAnnotation)
+  .addNode("agent", agentFn)
+  .addNode("tools", toolNode)
+  .addEdge(START, "agent")
+  .addConditionalEdges("agent", toolsCondition)
+  .addEdge("tools", "agent")
+  .compile();
+
+const parentGraph = new StateGraph(MessagesAnnotation)
+  .addNode("child", childGraph)  // compiled graph as node
+  .addEdge(START, "child")
+  .addEdge("child", END)
+  .compile();
+```
+
+Shared state keys are automatically mapped between parent and child.
+
+### Invoke Graph from a Node
+
+When parent and child have different state schemas, invoke the subgraph from a node function and map state manually:
+
+```typescript
+const childGraph = new StateGraph(ChildState)
+  .addNode("process", processFn)
+  .addEdge(START, "process")
+  .addEdge("process", END)
+  .compile();
+
+async function parentNode(state: typeof ParentState.State) {
+  // Map parent state to child input
+  const childResult = await childGraph.invoke({
+    messages: state.messages,
+    childSpecificField: state.someParentField,
+  });
+
+  // Map child output back to parent state
+  return {
+    messages: childResult.messages,
+    processedOutput: childResult.result,
+  };
+}
+```
+
+### Subgraph with Interrupts
+
+When a subgraph contains `interrupt()` calls, the interrupt surfaces through the parent graph. Use the same `thread_id` to resume. You can inspect the subgraph state during an interrupt:
+
+```typescript
+const parentState = await parentGraph.getState(config);
+// Access subgraph state during interrupt
+const subgraphState = parentState.tasks[0].state;
+```
+
 ## Scaling Considerations
 
-1. **Message array growth**: Each agent prepends SystemMessage + all messages. With many iterations, this hits token limits. Mitigate by summarizing or truncating earlier messages.
+1. **Message array growth**: Each agent prepends SystemMessage + all messages. With many iterations, this hits token limits. Mitigate by summarizing or truncating earlier messages, or use `summarizationMiddleware` with `createAgent`.
 
-2. **Latency**: Each agent = 1+ LLM calls. A Design→Engineer→QA loop with tool calls can take 30-60 seconds. Consider streaming to keep the user informed.
+2. **Latency**: Each agent = 1+ LLM calls. A Design->Engineer->QA loop with tool calls can take 30-60 seconds. Consider streaming to keep the user informed.
 
 3. **Cost**: Multi-agent multiplies LLM calls. Use cheaper models (haiku) for routine agents, expensive models (sonnet/opus) only for complex reasoning.
 
 4. **Error propagation**: One agent failure can cascade. Add error handling at node level and graph level. Send partial results to client even on failure.
 
-5. **Checkpointing for long workflows**: Without a checkpointer, server crash = total loss. For workflows > 30 seconds, consider persistent checkpointing.
+5. **Checkpointing for long workflows**: Without a checkpointer, server crash = total loss. For workflows > 30 seconds, consider persistent checkpointing (SQLite or PostgreSQL).
+
+6. **Token counting**: Track token usage per agent call. Trim the message array when approaching model limits. Consider dedicated summary nodes between agent phases.

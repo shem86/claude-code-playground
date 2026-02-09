@@ -8,9 +8,12 @@
 - [Tool Calling](#tool-calling)
 - [Memory and Checkpointing](#memory-and-checkpointing)
 - [Graph Structure](#graph-structure)
+- [Human-in-the-Loop / Interrupts](#human-in-the-loop--interrupts)
 - [TypeScript Issues](#typescript-issues)
 - [Debugging Strategies](#debugging-strategies)
 - [Error Handling Best Practices](#error-handling-best-practices)
+- [Version Migration](#version-migration)
+- [Deployment](#deployment)
 
 ---
 
@@ -34,7 +37,15 @@
     content?: string;
   }
   ```
-- For browser environments, import from `@langchain/langgraph/web` (limited: no `interrupt()`, no functional API)
+
+### `@langchain/langgraph/web` Limitations
+
+For browser environments, `@langchain/langgraph/web` provides a subset of the API. Key limitations:
+- **No `interrupt()`** — human-in-the-loop requires server-side execution
+- **No Functional API** — `entrypoint` and `task` are not available
+- **No file-based checkpointers** — only `MemorySaver` works in-browser
+
+Use the web build only for client-side graph execution that doesn't need persistence or HITL.
 
 ### Edge Runtime Incompatible
 
@@ -73,19 +84,38 @@ const State = Annotation.Root({
 });
 ```
 
+With `StateSchema`, use `ReducedValue` explicitly:
+```typescript
+const State = new StateSchema({
+  count: new ReducedValue(z.number().default(0), {
+    inputSchema: z.number(),
+    reducer: (a, b) => a + b,
+  }),
+});
+```
+
 ### Duplicate Messages
 
 **Symptom:** Messages array contains duplicates after multiple iterations.
 
 **Cause:** Using a naive concat reducer `(a, b) => [...a, ...b]` instead of `messagesStateReducer`.
 
-**Fix:** Use `MessagesAnnotation` which includes ID-based deduplication. Ensure all messages have unique IDs.
+**Fix:** Use `MessagesAnnotation` (which includes ID-based deduplication) or `MessagesValue` with `StateSchema`. Ensure all messages have unique IDs.
 
 ### Checkpoint Serialization Strips Message IDs
 
 **Symptom:** After loading from checkpoint, messages lose their IDs, causing duplicates on next update.
 
-**Fix:** Verify checkpointer roundtrip serialization preserves all message fields. Test with: `getState() → update → getState()` and compare IDs.
+**Fix:** Verify checkpointer roundtrip serialization preserves all message fields. Test explicitly:
+```typescript
+const state1 = await graph.getState(config);
+const ids1 = state1.values.messages.map(m => m.id);
+// Invoke to trigger checkpoint save/load
+await graph.invoke(new Command({ resume: "test" }), config);
+const state2 = await graph.getState(config);
+const ids2 = state2.values.messages.map(m => m.id);
+// ids1 and ids2 should have no unexpected duplicates
+```
 
 ### Direct State Mutation
 
@@ -114,6 +144,23 @@ function myNode(state) { return { count: state.count + 1 }; }
 
 **Fix:** Use HTTP/2 in production. Share a single SSE connection and multiplex by ID. Close connections promptly.
 
+### Multiple Stream Modes Return Tuples
+
+**Symptom:** Code expects single chunks but gets arrays when using combined stream modes.
+
+**Cause:** When `streamMode` is an array, chunks are `[mode, data]` tuples instead of plain objects.
+
+**Fix:** Handle the tuple format:
+```typescript
+// Single mode — chunks are plain objects
+for await (const chunk of await graph.stream(input, { streamMode: "updates" })) { ... }
+
+// Multiple modes — chunks are [mode, data] tuples
+for await (const [mode, chunk] of await graph.stream(input, {
+  streamMode: ["updates", "custom"]
+})) { ... }
+```
+
 ### `streamEvents` Inconsistencies with ChatAnthropic
 
 **Symptom:** `on_chain_end` event returns malformed data (dict with `messages` key that isn't an array).
@@ -122,6 +169,8 @@ function myNode(state) { return { count: state.count + 1 }; }
 ```typescript
 if (Array.isArray(event.data?.messages)) { /* safe */ }
 ```
+
+**Note:** This may be resolved in LangGraph v1. Test with your specific version.
 
 ### Writer Already Closed
 
@@ -173,6 +222,20 @@ This sends errors back to the LLM as `ToolMessage` so it can retry.
 const modelWithTools = model.bindTools(tools);  // use modelWithTools, not model
 ```
 
+### Complex Zod Schemas Cause TS2589
+
+**Symptom:** `Type instantiation is excessively deep and possibly infinite` with `DynamicStructuredTool`.
+
+**Fix:** Split complex schemas into smaller sub-schemas, or use `tool()` instead:
+```typescript
+// Instead of one large schema:
+const bigSchema = z.object({ a: z.object({ b: z.object({ ... }) }) });
+
+// Split into parts:
+const innerSchema = z.object({ b: z.string() });
+const outerSchema = z.object({ a: innerSchema });
+```
+
 ---
 
 ## Memory and Checkpointing
@@ -183,7 +246,14 @@ const modelWithTools = model.bindTools(tools);  // use modelWithTools, not model
 
 **Cause:** `MemorySaver` stores state in memory only.
 
-**Fix:** Use database-backed checkpointer for production (PostgreSQL, SQLite).
+**Fix:** Use database-backed checkpointer for production:
+```typescript
+import { SqliteSaver } from "@langchain/langgraph-checkpoint-sqlite";
+const checkpointer = SqliteSaver.fromConnString("./checkpoints.db");
+
+import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
+const checkpointer = PostgresSaver.fromConnString(process.env.DATABASE_URL);
+```
 
 ### Missing `thread_id`
 
@@ -246,6 +316,7 @@ if (lastMsg._getType() === "ai" && (lastMsg as AIMessage).tool_calls?.length) {
 - Summarize or truncate older messages before passing to LLM
 - Pass only relevant recent messages + system prompt
 - Track token count and trim when approaching limits
+- Use `summarizationMiddleware` with `createAgent` (v1)
 
 ### Parallel Node State Conflicts
 
@@ -254,6 +325,57 @@ if (lastMsg._getType() === "ai" && (lastMsg as AIMessage).tool_calls?.length) {
 **Cause:** No reducer defined for keys updated by parallel nodes.
 
 **Fix:** Define merge reducers for all keys that receive parallel updates.
+
+---
+
+## Human-in-the-Loop / Interrupts
+
+### Interrupt Ordering is Index-Based
+
+**Symptom:** After resuming, wrong values are assigned to interrupt variables.
+
+**Cause:** Multiple `interrupt()` calls in a single node are matched by index. If the order changes between executions, values are misaligned.
+
+**Fix:** Keep interrupt calls deterministic:
+```typescript
+// GOOD — always the same two interrupts in the same order
+function myNode(state) {
+  const approval = interrupt("Approve action?");
+  const comment = interrupt("Any comments?");
+  return { approval, comment };
+}
+
+// BAD — conditional skipping changes the index
+function myNode(state) {
+  if (state.needsApproval) {
+    const approval = interrupt("Approve?");  // index 0 sometimes, missing other times
+  }
+  const comment = interrupt("Comments?");    // index shifts
+}
+```
+
+### Interrupt Not Available in Browser
+
+**Symptom:** `interrupt is not defined` or similar error in client-side code.
+
+**Fix:** `interrupt()` requires the full Node.js LangGraph runtime. It is not available in `@langchain/langgraph/web`. Run interrupt-based graphs server-side only.
+
+### Resume Starts Fresh Instead of Continuing
+
+**Symptom:** Calling `invoke(Command({ resume: ... }))` runs the graph from the beginning.
+
+**Cause:** Using a different `thread_id` or missing checkpointer.
+
+**Fix:** Ensure same `thread_id` and that the checkpointer was provided at compile time:
+```typescript
+const graph = myGraph.compile({ checkpointer: new MemorySaver() });
+const config = { configurable: { thread_id: "same-id" } };
+
+// Initial run
+await graph.invoke(input, config);
+// Resume — same config
+await graph.invoke(new Command({ resume: value }), config);
+```
 
 ---
 
@@ -270,6 +392,25 @@ if (lastMsg._getType() === "ai" && (lastMsg as AIMessage).tool_calls?.length) {
 - Pin Zod to `<= 3.25.67`
 - Break complex schemas into smaller sub-schemas
 - Add explicit type annotations
+- Prefer `tool()` over `DynamicStructuredTool`
+
+### StateSchema Type Extraction
+
+When `Annotation` types get complex, `StateSchema` provides cleaner type extraction:
+
+```typescript
+import { StateSchema, MessagesValue } from "@langchain/langgraph";
+import * as z from "zod";
+
+const State = new StateSchema({
+  messages: MessagesValue,
+  count: z.number().default(0),
+});
+
+// Clean type extraction
+type MyState = typeof State.State;    // { messages: BaseMessage[], count: number }
+type MyUpdate = typeof State.Update;  // { messages?: Messages, count?: number }
+```
 
 ### Cannot Export Graphs with Zod State Schemas
 
@@ -324,6 +465,10 @@ With a checkpointer:
 ```typescript
 const state = await graph.getState({ configurable: { thread_id: "123" } });
 console.log("Current state:", JSON.stringify(state.values, null, 2));
+
+// For subgraph state during an interrupt:
+const fullState = await graph.getState(config, { subgraphs: true });
+console.log("Subgraph state:", fullState.tasks[0]?.state);
 ```
 
 ---
@@ -369,7 +514,16 @@ try {
 
 ```typescript
 graph.addNode("myNode", myNodeFn, {
-  retryPolicy: { maxAttempts: 3, backoffFactor: 2 }
+  retryPolicy: {
+    maxAttempts: 3,        // Total attempts (initial + retries)
+    backoffFactor: 2,      // Exponential backoff multiplier
+    initialInterval: 500,  // ms before first retry
+    maxInterval: 10000,    // Max ms between retries
+    retryOn: (error) => {  // Custom retry condition
+      return error.message.includes("rate limit") ||
+             error.message.includes("timeout");
+    },
+  },
 });
 ```
 
@@ -391,3 +545,98 @@ graph.addConditionalEdges("design", (state) => {
   // ...
 });
 ```
+
+---
+
+## Version Migration
+
+### createReactAgent -> createAgent
+
+| Aspect | `createReactAgent` (legacy) | `createAgent` (v1) |
+|--------|---------------------------|-------------------|
+| Package | `@langchain/langgraph/prebuilt` | `langchain` |
+| Model param | `llm: new ChatAnthropic(...)` | `model: "claude-haiku-4-5"` (string) |
+| Prompt param | `prompt: "..."` | `systemPrompt: "..."` |
+| Custom hooks | Not supported | `middleware: [...]` |
+| HITL | Manual `interrupt()` | `humanInTheLoopMiddleware` |
+| Streaming node | `"agent"` | `"model"` |
+| Custom state | Via `stateSchema` prop | Via middleware `stateSchema` |
+
+**Migration steps:**
+1. Install `langchain@latest`
+2. Change import: `import { createAgent } from "langchain"`
+3. Replace `llm:` with `model:` (string name or model instance)
+4. Replace `prompt:` with `systemPrompt:`
+5. Add middleware for HITL, summarization, etc.
+6. Update streaming code if filtering by node name (`"agent"` -> `"model"`)
+
+### Annotation.Root -> StateSchema
+
+Both are valid and stable. Migrate only if you want cleaner Zod integration:
+
+```typescript
+// Before (Annotation.Root)
+const State = Annotation.Root({
+  ...MessagesAnnotation.spec,
+  count: Annotation<number>({ reducer: (a, b) => a + b, default: () => 0 }),
+});
+
+// After (StateSchema)
+const State = new StateSchema({
+  messages: MessagesValue,
+  count: new ReducedValue(z.number().default(0), {
+    inputSchema: z.number(),
+    reducer: (a, b) => a + b,
+  }),
+});
+```
+
+---
+
+## Deployment
+
+### Edge Runtime is Incompatible
+
+LangGraph requires Node.js runtime features (`async_hooks`, `fs` for some checkpointers). Always set:
+
+```typescript
+// In Next.js API routes
+export const runtime = "nodejs";
+```
+
+### Vercel Considerations
+
+- **Function timeout**: Vercel Hobby plan has 10s timeout. Multi-agent workflows often exceed this. Use Pro plan (60s) or streaming responses to keep the connection alive.
+- **Serverless cold starts**: First invocation may be slow. `MemorySaver` state is lost between invocations — use persistent checkpointers.
+- **Bundle size**: LangChain packages can be large. Use granular imports and check bundle analyzer output.
+
+### LangSmith Integration
+
+Enable tracing in production for observability:
+
+```bash
+# .env
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=your_key
+LANGSMITH_PROJECT=my-project
+```
+
+For serverless environments (Vercel, AWS Lambda), ensure traces are flushed before the function exits:
+
+```typescript
+import { Client } from "langsmith";
+const client = new Client();
+
+// After graph execution
+await client.awaitPendingTraceBatches();
+```
+
+Or set `LANGSMITH_TRACING_BACKGROUND=false` to make tracing synchronous (adds latency but ensures no lost traces).
+
+### Long-Running Workflows
+
+For workflows exceeding serverless timeouts:
+- Use persistent checkpointers (SQLite/PostgreSQL) so work survives restarts
+- Stream intermediate results to keep the HTTP connection alive
+- Consider background job queues for very long workflows
+- Use `retryPolicy` on nodes for transient failures
