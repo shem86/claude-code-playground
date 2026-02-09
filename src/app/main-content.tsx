@@ -41,7 +41,7 @@ export function MainContent({ user, project }: MainContentProps) {
                 {/* Chat Header */}
                 <div className="h-14 flex items-center justify-between px-6 border-b border-neutral-200/60">
                   <h1 className="text-lg font-semibold text-neutral-900 tracking-tight">
-                    React Component Generator
+                    React Component Multi Agent Generator
                   </h1>
                   <AgentModeToggle />
                 </div>

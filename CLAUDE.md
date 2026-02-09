@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-UIGen is an AI-powered React component generator with live preview. Users describe components in natural language, Claude generates the code, and a live preview renders it in real-time.
+UIGen is an AI-powered React component multi agnet generator with live preview. Users describe components in natural language, Claude generates the code, and a live preview renders it in real-time.
 
 **Stack:** Next.js 15, React 19, TypeScript, Tailwind CSS v4, SQLite + Prisma, Anthropic Claude (haiku-4.5)
 

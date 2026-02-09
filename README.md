@@ -63,7 +63,7 @@ see here: [`Pick your agent: Use Claude and Codex on Agent HQ`](https/company-ne
 
 ## 🧪 Base Project: UIGen
 
-This project inherits **UIGen**, an AI-powered React component generator from a Claude Code course. While not my primary work, it provides a functioning web app for testing the GitHub Actions integration.
+This project inherits **UIGen**, an AI-powered React component multi agent generator based on a project from a Claude Code course. While the main functionallity of the app (component generation) is not work, it provides a functioning web app for testing the GitHub Actions integration, and multi agent orchestration using LangChain and LangGraph.
 
 <!-- markdownlint-disable MD033 -->
 <details>
