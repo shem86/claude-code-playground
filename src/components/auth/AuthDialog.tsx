@@ -18,11 +18,7 @@ interface AuthDialogProps {
   defaultMode?: "signin" | "signup";
 }
 
-export function AuthDialog({
-  open,
-  onOpenChange,
-  defaultMode = "signin",
-}: AuthDialogProps) {
+export function AuthDialog({ open, onOpenChange, defaultMode = "signin" }: AuthDialogProps) {
   const [mode, setMode] = useState<"signin" | "signup">(defaultMode);
 
   useEffect(() => {
@@ -37,9 +33,7 @@ export function AuthDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>
-            {mode === "signin" ? "Welcome back" : "Create an account"}
-          </DialogTitle>
+          <DialogTitle>{mode === "signin" ? "Welcome back" : "Create an account"}</DialogTitle>
           <DialogDescription>
             {mode === "signin"
               ? "Sign in to your account to continue"

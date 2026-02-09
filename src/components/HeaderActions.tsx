@@ -1,3 +1,4 @@
+// Header toolbar: auth buttons (signed out) or project switcher + actions (signed in)
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,11 +9,7 @@ import { AuthDialog } from "@/components/auth/AuthDialog";
 import { signOut } from "@/actions";
 import { getProjects } from "@/actions/get-projects";
 import { createProject } from "@/actions/create-project";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -63,6 +60,7 @@ export function HeaderActions({ user, projectId }: HeaderActionsProps) {
     }
   }, [projectsOpen, user]);
 
+  // Client-side search filtering for the project switcher
   const filteredProjects = projects.filter((project) =>
     project.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -83,6 +81,7 @@ export function HeaderActions({ user, projectId }: HeaderActionsProps) {
     await signOut();
   };
 
+  // Create a new project with a random name and navigate to it
   const handleNewDesign = async () => {
     const project = await createProject({
       name: `Design #${~~(Math.random() * 100000)}`,
@@ -92,6 +91,7 @@ export function HeaderActions({ user, projectId }: HeaderActionsProps) {
     router.push(`/${project.id}`);
   };
 
+  // Unauthenticated: show sign-in/sign-up buttons
   if (!user) {
     return (
       <>
@@ -103,15 +103,12 @@ export function HeaderActions({ user, projectId }: HeaderActionsProps) {
             Sign Up
           </Button>
         </div>
-        <AuthDialog
-          open={authDialogOpen}
-          onOpenChange={setAuthDialogOpen}
-          defaultMode={authMode}
-        />
+        <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} defaultMode={authMode} />
       </>
     );
   }
 
+  // Authenticated: project switcher dropdown, new design button, sign out
   return (
     <div className="flex items-center gap-2">
       {!initialLoading && (
@@ -141,8 +138,7 @@ export function HeaderActions({ user, projectId }: HeaderActionsProps) {
                         router.push(`/${project.id}`);
                         setProjectsOpen(false);
                         setSearchQuery("");
-                      }}
-                    >
+                      }}>
                       <div className="flex flex-col">
                         <span className="font-medium">{project.name}</span>
                       </div>
@@ -165,8 +161,7 @@ export function HeaderActions({ user, projectId }: HeaderActionsProps) {
         size="icon"
         className="h-8 w-8"
         onClick={handleSignOut}
-        title="Sign out"
-      >
+        title="Sign out">
         <LogOut className="h-4 w-4" />
       </Button>
     </div>

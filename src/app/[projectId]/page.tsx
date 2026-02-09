@@ -1,6 +1,6 @@
 import { getUser } from "@/actions";
 import { getProject } from "@/actions/get-project";
-import { MainContent } from "@/app/main-content";
+import { MainContentLoader } from "@/app/main-content-loader";
 import { redirect } from "next/navigation";
 
 interface PageProps {
@@ -18,10 +18,9 @@ export default async function ProjectPage({ params }: PageProps) {
   let project;
   try {
     project = await getProject(projectId);
-  } catch (error) {
-    // If project not found or user doesn't have access, redirect to home
+  } catch {
     redirect("/");
   }
 
-  return <MainContent user={user} project={project} />;
+  return <MainContentLoader user={user} project={project} />;
 }
