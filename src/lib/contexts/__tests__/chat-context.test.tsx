@@ -24,11 +24,7 @@ function TestComponent() {
   return (
     <div>
       <div data-testid="messages">{chat.messages.length}</div>
-      <textarea
-        data-testid="input"
-        value={chat.input}
-        onChange={chat.handleInputChange}
-      />
+      <textarea data-testid="input" value={chat.input} onChange={chat.handleInputChange} />
       <form data-testid="form" onSubmit={chat.handleSubmit}>
         <button type="submit">Submit</button>
       </form>

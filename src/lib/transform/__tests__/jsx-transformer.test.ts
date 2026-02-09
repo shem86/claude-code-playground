@@ -66,7 +66,7 @@ test("transformJSX handles transform errors gracefully", () => {
 
   expect(result.code).toBe("");
   expect(result.error).toBe("Transform failed");
-  
+
   // Reset the mock
   vi.mocked(Babel.transform).mockReset();
 });
@@ -118,15 +118,13 @@ test("createImportMap transforms JavaScript and TypeScript files", () => {
   // Should have blob URLs for JS/TS files
   expect(parsed.imports["/App.jsx"]).toMatch(/^blob:mock-url-/);
   expect(parsed.imports["/utils.ts"]).toMatch(/^blob:mock-url-/);
-  
+
   // Should not have CSS files
   expect(parsed.imports["/styles.css"]).toBeUndefined();
 });
 
 test("createImportMap creates multiple path variations for files", () => {
-  const files = new Map([
-    ["/components/Button.jsx", "export default function Button() {}"],
-  ]);
+  const files = new Map([["/components/Button.jsx", "export default function Button() {}"]]);
 
   const result = createImportMap(files);
   const parsed = JSON.parse(result.importMap);
@@ -172,7 +170,7 @@ test("createPreviewHTML generates valid HTML with import map", () => {
   const importMap = JSON.stringify({
     imports: {
       "/App.jsx": "blob:mock-url-123",
-      "react": "https://esm.sh/react@19",
+      react: "https://esm.sh/react@19",
     },
   });
 
@@ -201,7 +199,7 @@ test("createPreviewHTML includes error boundary", () => {
 test("createPreviewHTML handles invalid import map gracefully", () => {
   // Mock console.error to prevent noise in test output
   const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-  
+
   const invalidImportMap = "{ invalid json";
   const html = createPreviewHTML("/App.jsx", invalidImportMap);
 
@@ -209,26 +207,32 @@ test("createPreviewHTML handles invalid import map gracefully", () => {
   expect(html).toContain("/App.jsx");
   // The error is logged to console, not included in HTML
   expect(html).toContain("console.error('Failed to load app:', error)");
-  
+
   // Restore console.error
   consoleErrorSpy.mockRestore();
 });
 
 test("integration: full transformation pipeline works", () => {
   const files = new Map([
-    ["/App.jsx", `
+    [
+      "/App.jsx",
+      `
       import React from 'react';
       import Button from './Button';
       
       export default function App() {
         return <div><Button /></div>;
       }
-    `],
-    ["/Button.jsx", `
+    `,
+    ],
+    [
+      "/Button.jsx",
+      `
       export default function Button() {
         return <button>Click me</button>;
       }
-    `],
+    `,
+    ],
   ]);
 
   const result = createImportMap(files);
@@ -258,7 +262,7 @@ test("transformJSX detects CSS imports", () => {
     export default function App() { return <div>App</div>; }
   `;
   const result = transformJSX(code, "App.jsx", new Set());
-  
+
   expect(result.cssImports).toBeDefined();
   expect(result.cssImports).toContain("./styles.css");
   expect(result.cssImports).toContain("@/styles/globals.css");
@@ -273,7 +277,7 @@ test("transformJSX removes CSS imports from transformed code", () => {
     export default function App() { return <div>App</div>; }
   `;
   const result = transformJSX(code, "App.jsx", new Set());
-  
+
   expect(result.code).not.toContain("import './styles.css'");
   expect(result.code).toContain("React");
 });
@@ -285,7 +289,7 @@ test("transformJSX handles CSS imports with different quotes", () => {
     import '@/styles/globals.css';
   `;
   const result = transformJSX(code, "App.jsx", new Set());
-  
+
   expect(result.cssImports).toContain("./single.css");
   expect(result.cssImports).toContain("./double.css");
   expect(result.cssImports).toContain("@/styles/globals.css");
@@ -297,25 +301,23 @@ test("createImportMap collects CSS files and returns styles", () => {
     ["/styles.css", `body { margin: 0; } .container { padding: 20px; }`],
     ["/globals.css", `* { box-sizing: border-box; }`],
   ]);
-  
+
   const result = createImportMap(files);
-  
+
   // Should return an object with imports and styles
   expect(result).toHaveProperty("importMap");
   expect(result).toHaveProperty("styles");
-  
+
   // Should collect CSS content
   expect(result.styles).toContain("body { margin: 0; }");
   expect(result.styles).toContain("* { box-sizing: border-box; }");
 });
 
 test("createImportMap handles missing CSS files gracefully", () => {
-  const files = new Map([
-    ["/App.jsx", `import './missing.css'; export default function App() {}`],
-  ]);
-  
+  const files = new Map([["/App.jsx", `import './missing.css'; export default function App() {}`]]);
+
   const result = createImportMap(files);
-  
+
   // Should not throw error
   expect(result.styles).toBeDefined();
   // Could include comment about missing file
@@ -327,7 +329,7 @@ test("createImportMap resolves CSS import paths correctly", () => {
     ["/src/App.jsx", `import '@/styles/globals.css'; export default function App() {}`],
     ["/styles/globals.css", `body { background: white; }`],
   ]);
-  
+
   const result = createImportMap(files);
   expect(result.styles).toContain("body { background: white; }");
 });
@@ -337,9 +339,9 @@ test("createPreviewHTML injects CSS styles into head", () => {
     body { margin: 0; }
     .container { padding: 20px; }
   `;
-  
+
   const html = createPreviewHTML("/App.jsx", "{}", styles);
-  
+
   expect(html).toContain("<style>");
   expect(html).toContain("body { margin: 0; }");
   expect(html).toContain(".container { padding: 20px; }");
@@ -347,7 +349,7 @@ test("createPreviewHTML injects CSS styles into head", () => {
 
 test("createPreviewHTML handles empty CSS gracefully", () => {
   const html = createPreviewHTML("/App.jsx", "{}", "");
-  
+
   // Should not break without styles
   expect(html).toContain("<!DOCTYPE html>");
   expect(html).toContain('<div id="root"></div>');
@@ -356,7 +358,7 @@ test("createPreviewHTML handles empty CSS gracefully", () => {
 test("createPreviewHTML preserves existing styles with CSS injection", () => {
   const customStyles = "h1 { color: blue; }";
   const html = createPreviewHTML("/App.jsx", "{}", customStyles);
-  
+
   // Should have both Tailwind and custom styles
   expect(html).toContain("https://cdn.tailwindcss.com");
   expect(html).toContain("h1 { color: blue; }");
@@ -367,7 +369,9 @@ test("createPreviewHTML preserves existing styles with CSS injection", () => {
 
 test("integration: full pipeline handles components with CSS imports", () => {
   const files = new Map([
-    ["/App.jsx", `
+    [
+      "/App.jsx",
+      `
       import React from 'react';
       import './App.css';
       import '@/styles/globals.css';
@@ -375,21 +379,22 @@ test("integration: full pipeline handles components with CSS imports", () => {
       export default function App() {
         return <div className="container">Hello</div>;
       }
-    `],
+    `,
+    ],
     ["/App.css", `.container { max-width: 1200px; margin: 0 auto; }`],
     ["/styles/globals.css", `body { font-family: sans-serif; }`],
   ]);
-  
+
   const result = createImportMap(files);
   const parsed = JSON.parse(result.importMap);
-  
+
   // JS files should be in import map
   expect(parsed.imports["/App.jsx"]).toMatch(/^blob:mock-url-/);
-  
+
   // CSS should be collected
   expect(result.styles).toContain(".container { max-width: 1200px;");
   expect(result.styles).toContain("body { font-family: sans-serif;");
-  
+
   // HTML should include CSS
   const html = createPreviewHTML("/App.jsx", result.importMap, result.styles);
   expect(html).toContain(".container { max-width: 1200px;");
@@ -408,29 +413,32 @@ test("createImportMap handles syntax errors gracefully", () => {
     }
     return { code };
   });
-  
+
   const files = new Map([
     ["/App.jsx", `export default function App() { return <div>Hello</div>; }`],
-    ["/BadComponent.jsx", `
+    [
+      "/BadComponent.jsx",
+      `
       export default function BadComponent() {
         return <div>Missing closing tag
       }
-    `],
+    `,
+    ],
   ]);
-  
+
   const result = createImportMap(files);
   const parsed = JSON.parse(result.importMap);
-  
+
   // Good file should be in import map
   expect(parsed.imports["/App.jsx"]).toMatch(/^blob:mock-url-/);
   // Bad file should NOT be in import map anymore
   expect(parsed.imports["/BadComponent.jsx"]).toBeUndefined();
-  
+
   // Should have error for BadComponent
   expect(result.errors).toHaveLength(1);
   expect(result.errors[0].path).toBe("/BadComponent.jsx");
   expect(result.errors[0].error).toBe("Unexpected token: Missing closing tag");
-  
+
   // Restore mock
   vi.mocked(Babel.transform).mockReset();
 });
@@ -438,18 +446,18 @@ test("createImportMap handles syntax errors gracefully", () => {
 test("createPreviewHTML displays syntax errors", () => {
   const errors = [
     { path: "/Component.jsx", error: "Unexpected token" },
-    { path: "/Another.jsx", error: "Missing semicolon" }
+    { path: "/Another.jsx", error: "Missing semicolon" },
   ];
-  
+
   const html = createPreviewHTML("/App.jsx", "{}", "", errors);
-  
+
   // Should show error section
   expect(html).toContain("Syntax Errors (2)");
   expect(html).toContain("/Component.jsx");
   expect(html).toContain("Unexpected token");
   expect(html).toContain("/Another.jsx");
   expect(html).toContain("Missing semicolon");
-  
+
   // Should NOT include the app script when there are errors
   expect(html).not.toContain("loadApp()");
 });
@@ -463,34 +471,40 @@ test("files with syntax errors are not included in import map", () => {
     // Return default mock behavior for other files
     return { code };
   });
-  
+
   const files = new Map([
-    ["/App.jsx", `
+    [
+      "/App.jsx",
+      `
       import BadComponent from './BadComponent';
       export default function App() { 
         return <div><BadComponent /></div>; 
       }
-    `],
-    ["/BadComponent.jsx", `
+    `,
+    ],
+    [
+      "/BadComponent.jsx",
+      `
       export default function BadComponent() {
         return <div>Missing closing tag
       }
-    `],
+    `,
+    ],
   ]);
-  
+
   const result = createImportMap(files);
   const parsed = JSON.parse(result.importMap);
-  
+
   // BadComponent should NOT be in import map anymore
   expect(parsed.imports["/BadComponent.jsx"]).toBeUndefined();
   expect(parsed.imports["/BadComponent"]).toBeUndefined();
-  
+
   // But a placeholder should be created for the import
   expect(parsed.imports["./BadComponent"]).toBeDefined();
-  
+
   // Should have error tracked
-  expect(result.errors.some(e => e.path === "/BadComponent.jsx")).toBe(true);
-  
+  expect(result.errors.some((e) => e.path === "/BadComponent.jsx")).toBe(true);
+
   // Restore mock
   vi.mocked(Babel.transform).mockReset();
 });

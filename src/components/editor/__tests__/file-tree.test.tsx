@@ -1,10 +1,7 @@
 import { test, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { FileTree } from "@/components/editor/FileTree";
-import {
-  type VirtualFileSystem as FileSystem,
-  FileNode,
-} from "@/lib/file-system";
+import { type VirtualFileSystem as FileSystem, FileNode } from "@/lib/file-system";
 import { useFileSystem } from "@/lib/contexts/file-system-context";
 
 // Mock the file system context
@@ -24,15 +21,11 @@ vi.mock("lucide-react", () => ({
   ChevronDown: ({ className }: { className?: string }) => (
     <div className={className}>ChevronDown</div>
   ),
-  Folder: ({ className }: { className?: string }) => (
-    <div className={className}>Folder</div>
-  ),
+  Folder: ({ className }: { className?: string }) => <div className={className}>Folder</div>,
   FolderOpen: ({ className }: { className?: string }) => (
     <div className={className}>FolderOpen</div>
   ),
-  FileCode: ({ className }: { className?: string }) => (
-    <div className={className}>FileCode</div>
-  ),
+  FileCode: ({ className }: { className?: string }) => <div className={className}>FileCode</div>,
 }));
 
 // Helper function to create a mock file system
@@ -73,10 +66,7 @@ test("FileTree renders files and directories", () => {
         children: new Map(),
       },
     ],
-    [
-      "App.jsx",
-      { type: "file", name: "App.jsx", path: "/App.jsx", content: "" },
-    ],
+    ["App.jsx", { type: "file", name: "App.jsx", path: "/App.jsx", content: "" }],
   ]);
 
   const mockFileSystem = createMockFileSystem({

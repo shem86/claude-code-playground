@@ -30,17 +30,16 @@ vi.mock("../MessageList", () => ({
 vi.mock("../MessageInput", () => ({
   MessageInput: ({ input, handleInputChange, handleSubmit, isLoading }: any) => (
     <div data-testid="message-input">
-      <input
-        value={input}
-        onChange={handleInputChange}
-        data-testid="input"
-        disabled={isLoading}
-      />
+      <input value={input} onChange={handleInputChange} data-testid="input" disabled={isLoading} />
       <button onClick={handleSubmit} disabled={isLoading} data-testid="submit">
         Submit
       </button>
     </div>
   ),
+}));
+
+vi.mock("../AgentActivityFeed", () => ({
+  AgentActivityFeed: () => <div data-testid="agent-activity-feed" />,
 }));
 
 const mockUseChat = {
@@ -49,6 +48,10 @@ const mockUseChat = {
   handleInputChange: vi.fn(),
   handleSubmit: vi.fn(),
   status: "idle" as const,
+  agentMode: "single" as const,
+  setAgentMode: vi.fn(),
+  agentMessages: [],
+  isMultiAgentRunning: false,
 };
 
 beforeEach(() => {
@@ -72,7 +75,7 @@ test("passes correct props to MessageList", () => {
     { id: "1", role: "user", content: "Hello" },
     { id: "2", role: "assistant", content: "Hi there!" },
   ];
-  
+
   (useChat as any).mockReturnValue({
     ...mockUseChat,
     messages,
@@ -136,12 +139,13 @@ test("isLoading is false when status is idle", () => {
   expect(submitButton).toHaveProperty("disabled", false);
 });
 
-
 test("scrolls when messages change", () => {
   const { rerender } = render(<ChatInterface />);
 
   // Get initial scroll container
-  const scrollContainer = screen.getByTestId("message-list").closest("[data-radix-scroll-area-viewport]");
+  const scrollContainer = screen
+    .getByTestId("message-list")
+    .closest("[data-radix-scroll-area-viewport]");
   expect(scrollContainer).toBeDefined();
 
   // Update messages - this should trigger the useEffect
@@ -161,6 +165,12 @@ test("scrolls when messages change", () => {
 });
 
 test("renders with correct layout classes", () => {
+  // Use messages so the ScrollArea is rendered instead of the empty state
+  (useChat as any).mockReturnValue({
+    ...mockUseChat,
+    messages: [{ id: "1", role: "user", content: "Hello" }],
+  });
+
   const { container } = render(<ChatInterface />);
 
   const mainDiv = container.firstChild as HTMLElement;

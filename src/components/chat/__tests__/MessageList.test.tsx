@@ -15,12 +15,8 @@ afterEach(() => {
 test("MessageList shows empty state when no messages", () => {
   render(<MessageList messages={[]} />);
 
-  expect(
-    screen.getByText("Start a conversation to generate React components")
-  ).toBeDefined();
-  expect(
-    screen.getByText("I can help you create buttons, forms, cards, and more")
-  ).toBeDefined();
+  expect(screen.getByText("Start a conversation to generate React components")).toBeDefined();
+  expect(screen.getByText("I can help you create buttons, forms, cards, and more")).toBeDefined();
 });
 
 test("MessageList renders user messages", () => {
@@ -48,9 +44,7 @@ test("MessageList renders assistant messages", () => {
 
   render(<MessageList messages={messages} />);
 
-  expect(
-    screen.getByText("I'll help you create a button component.")
-  ).toBeDefined();
+  expect(screen.getByText("I'll help you create a button component.")).toBeDefined();
 });
 
 test("MessageList renders messages with parts", () => {
@@ -190,13 +184,9 @@ test("MessageList renders multiple messages in correct order", () => {
 
   // Check the content of each message in order
   expect(messageContainers[0].textContent).toContain("First user message");
-  expect(messageContainers[1].textContent).toContain(
-    "First assistant response"
-  );
+  expect(messageContainers[1].textContent).toContain("First assistant response");
   expect(messageContainers[2].textContent).toContain("Second user message");
-  expect(messageContainers[3].textContent).toContain(
-    "Second assistant response"
-  );
+  expect(messageContainers[3].textContent).toContain("Second assistant response");
 });
 
 test("MessageList handles step-start parts", () => {
@@ -239,9 +229,7 @@ test("MessageList applies correct styling for user vs assistant messages", () =>
   render(<MessageList messages={messages} />);
 
   const userMessage = screen.getByText("User message").closest(".rounded-xl");
-  const assistantMessage = screen
-    .getByText("Assistant message")
-    .closest(".rounded-xl");
+  const assistantMessage = screen.getByText("Assistant message").closest(".rounded-xl");
 
   // User messages should have blue background
   expect(userMessage?.className).toContain("bg-blue-600");
@@ -277,9 +265,7 @@ test("MessageList shows loading for assistant message with empty parts", () => {
     },
   ];
 
-  const { container } = render(
-    <MessageList messages={messages} isLoading={true} />
-  );
+  const { container } = render(<MessageList messages={messages} isLoading={true} />);
 
   // Check that exactly one "Generating..." text appears
   const loadingText = container.querySelectorAll(".text-neutral-500");

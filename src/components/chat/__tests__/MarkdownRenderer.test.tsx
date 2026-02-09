@@ -22,13 +22,13 @@ test("renders multiple heading levels", () => {
   const content = `# H1 Heading
 ## H2 Heading
 ### H3 Heading`;
-  
+
   render(<MarkdownRenderer content={content} />);
-  
+
   const h1 = screen.getByRole("heading", { level: 1, name: "H1 Heading" });
   const h2 = screen.getByRole("heading", { level: 2, name: "H2 Heading" });
   const h3 = screen.getByRole("heading", { level: 3, name: "H3 Heading" });
-  
+
   expect(h1).toBeDefined();
   expect(h1.tagName).toBe("H1");
   expect(h2).toBeDefined();
@@ -68,9 +68,7 @@ test("renders code blocks without custom inline styling", () => {
 });
 
 test("applies custom className to wrapper div", () => {
-  const { container } = render(
-    <MarkdownRenderer content="Test" className="custom-class" />
-  );
+  const { container } = render(<MarkdownRenderer content="Test" className="custom-class" />);
   const wrapper = container.firstChild as HTMLElement;
   expect(wrapper.className).toContain("prose");
   expect(wrapper.className).toContain("max-w-none");
@@ -101,7 +99,7 @@ test("renders unordered lists", () => {
 - Item 1
 - Item 2
 - Item 3`;
-  
+
   render(<MarkdownRenderer content={content} />);
   const list = screen.getByRole("list");
   expect(list).toBeDefined();
@@ -117,7 +115,7 @@ test("renders ordered lists", () => {
 1. First
 2. Second
 3. Third`;
-  
+
   const { container } = render(<MarkdownRenderer content={content} />);
   const orderedList = container.querySelector("ol");
   expect(orderedList).toBeDefined();
@@ -144,7 +142,7 @@ test("renders paragraphs", () => {
   const content = `First paragraph.
 
 Second paragraph.`;
-  
+
   const { container } = render(<MarkdownRenderer content={content} />);
   const paragraphs = container.querySelectorAll("p");
   expect(paragraphs).toHaveLength(2);
@@ -157,7 +155,7 @@ test("renders tables", () => {
 |----------|----------|
 | Cell 1   | Cell 2   |
 | Cell 3   | Cell 4   |`;
-  
+
   // ReactMarkdown by default may not render tables without additional plugins
   // The content will be rendered as plain text in a paragraph
   const { container } = render(<MarkdownRenderer content={content} />);
@@ -190,14 +188,14 @@ function hello() {
 > A blockquote with [a link](https://example.com)`;
 
   const { container } = render(<MarkdownRenderer content={content} />);
-  
+
   // Verify all elements are rendered
   expect(screen.getByRole("heading", { name: "Title" })).toBeDefined();
   expect(screen.getByText("bold").tagName).toBe("STRONG");
   expect(screen.getByText("italic").tagName).toBe("EM");
-  const codeBlock = container.querySelector('code.language-javascript');
+  const codeBlock = container.querySelector("code.language-javascript");
   expect(codeBlock).toBeDefined();
-  expect(codeBlock?.textContent).toContain('function hello()');
+  expect(codeBlock?.textContent).toContain("function hello()");
   expect(screen.getByText("inline code")).toBeDefined();
   expect(screen.getByRole("link", { name: "a link" })).toBeDefined();
 });
@@ -212,7 +210,7 @@ test("preserves code block content without modification", () => {
   const content = `\`\`\`javascript
 ${codeContent}
 \`\`\``;
-  
+
   const { container } = render(<MarkdownRenderer content={content} />);
   const codeBlock = container.querySelector("code.language-javascript");
   expect(codeBlock).toBeDefined();

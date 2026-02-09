@@ -154,10 +154,7 @@ describe("useAuth", () => {
     test("redirects to most recent project when sign in succeeds without anon work", async () => {
       mockSignInAction.mockResolvedValue({ success: true });
       mockGetAnonWorkData.mockReturnValue(null);
-      mockGetProjects.mockResolvedValue([
-        { id: "recent-project" },
-        { id: "older-project" },
-      ]);
+      mockGetProjects.mockResolvedValue([{ id: "recent-project" }, { id: "older-project" }]);
 
       const { result } = renderHook(() => useAuth());
 
@@ -297,7 +294,9 @@ describe("useAuth", () => {
       mockSignUpAction.mockResolvedValue({ success: true });
       mockGetAnonWorkData.mockReturnValue({
         messages: [{ id: "1", role: "user", content: "My design" }],
-        fileSystemData: { "/component.tsx": { type: "file", content: "export default () => <div />" } },
+        fileSystemData: {
+          "/component.tsx": { type: "file", content: "export default () => <div />" },
+        },
       });
       mockCreateProject.mockResolvedValue({ id: "new-user-project" });
 

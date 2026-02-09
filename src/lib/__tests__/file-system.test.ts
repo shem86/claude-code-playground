@@ -52,18 +52,13 @@ test("creates nested files and directories", () => {
   const fs = new VirtualFileSystem();
 
   // createFile now automatically creates parent directories
-  const file = fs.createFile(
-    "/src/components/Button.tsx",
-    "export const Button = () => {};"
-  );
+  const file = fs.createFile("/src/components/Button.tsx", "export const Button = () => {};");
 
   expect(file).toBeDefined();
   expect(file?.path).toBe("/src/components/Button.tsx");
   expect(fs.exists("/src")).toBe(true);
   expect(fs.exists("/src/components")).toBe(true);
-  expect(fs.readFile("/src/components/Button.tsx")).toBe(
-    "export const Button = () => {};"
-  );
+  expect(fs.readFile("/src/components/Button.tsx")).toBe("export const Button = () => {};");
 });
 
 test("returns null when creating existing file", () => {
@@ -215,11 +210,7 @@ test("lists directory contents", () => {
   const contents = fs.listDirectory("/");
 
   expect(contents).toHaveLength(3);
-  expect(contents?.map((n) => n.name).sort()).toEqual([
-    "README.md",
-    "src",
-    "test.txt",
-  ]);
+  expect(contents?.map((n) => n.name).sort()).toEqual(["README.md", "src", "test.txt"]);
 });
 
 test("returns null when listing non-directory", () => {
@@ -365,10 +356,7 @@ test("viewFile returns error for non-existent path", () => {
 test("createFileWithParents creates parent directories", () => {
   const fs = new VirtualFileSystem();
 
-  const result = fs.createFileWithParents(
-    "/src/components/Button.tsx",
-    "content"
-  );
+  const result = fs.createFileWithParents("/src/components/Button.tsx", "content");
 
   expect(result).toBe("File created: /src/components/Button.tsx");
   expect(fs.exists("/src")).toBe(true);
@@ -465,9 +453,7 @@ test("insertInFile returns error for invalid line number", () => {
   expect(result).toBe("Error: Invalid line number: 5. File has 2 lines.");
 
   const negativeResult = fs.insertInFile("/test.txt", -1, "text");
-  expect(negativeResult).toBe(
-    "Error: Invalid line number: -1. File has 2 lines."
-  );
+  expect(negativeResult).toBe("Error: Invalid line number: -1. File has 2 lines.");
 });
 
 test("insertInFile returns error for non-existent file", () => {
