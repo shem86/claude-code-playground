@@ -2,8 +2,11 @@
 
 An experimental repository showcasing **GitHub Actions + Claude Code integration**, custom skill development, and automated testing workflows. Built on a base project from a Claude Code course, this repo demonstrates real-world CI/CD automation with AI-powered code assistance.
 
-update (February 4): GitHub now supports these in a streamlined way using copilot on pro+ and enterprise accounts.
+update (February 4): GitHub now supports agents in GitHub actions in a streamlined way using copilot on pro+ and enterprise accounts.
 see here: [`Pick your agent: Use Claude and Codex on Agent HQ`](https/company-news/pick-your-agent-use-claude-and-codex-on-agent-hq)
+
+update (February 11): Github now supports writing agentic workflows in github actions using natural language 
+[`GitHub agentic workflows`](https://github.com/github/gh-aw)
 
 > **Purpose:** Portfolio showcase for recruiters and experimentation with Claude Code's advanced features, GitHub Actions workflows, and MCP server integrations.
 
@@ -11,7 +14,10 @@ see here: [`Pick your agent: Use Claude and Codex on Agent HQ`](https/company-ne
 
 ## 🎯 My Contributions
 
-### 1. GitHub Actions + Claude Code Integration
+### 1. Agentic workflows using langchain, the ui gen assistant uses several agents working together instead of one.
+todo: add details
+
+### 2. GitHub Actions + Claude Code Integration
 
 **What:** Automated Claude Code to run in GitHub Actions for issue/PR assistance with browser testing capabilities.
 
@@ -31,7 +37,7 @@ see here: [`Pick your agent: Use Claude and Codex on Agent HQ`](https/company-ne
 - Appends artifact download links to Claude's comments
 - Read-only mode: Claude tests and comments but doesn't push code
 
-### 2. Custom `gh-actions` Skill
+### 3. Custom `gh-actions` Skill
 
 **What:** Comprehensive Claude Code skill for managing GitHub Actions workflows.
 
@@ -50,7 +56,7 @@ see here: [`Pick your agent: Use Claude and Codex on Agent HQ`](https/company-ne
 - Debug action failures with common error patterns
 - Provide project-specific setup templates
 
-### 3. Testing & Quality Improvements
+### 4. Testing & Quality Improvements
 
 **What:** Added tests and improved component reliability.
 
@@ -151,5 +157,5 @@ Open [http://localhost:3000](http://localhost:3000)
 ## 📝 Notes
 
 - This is a **public portfolio project** for showcasing skills to recruiters
-- Focus is on the **GitHub Actions integration**, not the base UIGen app
-- Demonstrates practical DevOps, CI/CD, and AI tooling experience
+- Focus is on the **GitHub Actions integration**, and **UIGen app multi agent flow**
+- Demonstrates agentic workflows, practical DevOps, CI/CD, and overall AI tooling experience
