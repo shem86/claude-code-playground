@@ -1,8 +1,6 @@
 ---
 name: gh-actions
 description: Configure and troubleshoot GitHub Actions integration with Claude Code. Use when setting up claude.yml workflows, configuring MCP servers, debugging action runs, or optimizing Claude Code permissions and tools.
-argument-hint: "[action] [optional-path]"
-allowed-tools: Read, Edit, Write, Bash(gh *), Bash(git *), WebFetch
 ---
 
 # GitHub Actions + Claude Code Integration Skill
@@ -224,9 +222,9 @@ When invoked with specific arguments:
 
 This skill includes additional resources:
 
-- [templates.md](templates.md) - Complete workflow templates for different scenarios (minimal, full-featured, read-only, frontend testing, backend, monorepo, etc.)
-- [examples.md](examples.md) - Real-world examples with explanations (React/Next.js, Python FastAPI, monorepos, code review, maintenance tasks, database apps, docs generation, issue triage)
-- [troubleshooting.md](troubleshooting.md) - Common errors and solutions (permissions, MCP servers, tools, secrets, timeouts, debugging)
+- [templates.md](./references/templates.md) - Complete workflow templates for different scenarios (minimal, full-featured, read-only, frontend testing, backend, monorepo, etc.)
+- [examples.md](./references/examples.md) - Real-world examples with explanations (React/Next.js, Python FastAPI, monorepos, code review, maintenance tasks, database apps, docs generation, issue triage)
+- [troubleshooting.md](./references/troubleshooting.md) - Common errors and solutions (permissions, MCP servers, tools, secrets, timeouts, debugging)
 
 Load these files when you need:
 
