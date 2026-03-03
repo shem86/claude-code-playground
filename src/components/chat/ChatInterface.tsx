@@ -10,7 +10,7 @@ import { useChat } from "@/lib/contexts/chat-context";
 export function ChatInterface() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const {
-    messages,
+    displayMessages,
     input,
     handleInputChange,
     handleSubmit,
@@ -22,7 +22,7 @@ export function ChatInterface() {
 
   const isStreaming = status === "streaming";
   const isLoading = status === "submitted" || isStreaming;
-  const hasMessages = messages.length > 0 || agentMessages.length > 0 || agentMessageHistory.length > 0;
+  const hasMessages = displayMessages.length > 0 || agentMessages.length > 0 || agentMessageHistory.length > 0;
 
   useEffect(() => {
     const scrollContainer = scrollAreaRef.current?.querySelector(
@@ -31,18 +31,18 @@ export function ChatInterface() {
     if (scrollContainer) {
       scrollContainer.scrollTop = scrollContainer.scrollHeight;
     }
-  }, [messages, agentMessages]);
+  }, [displayMessages, agentMessages]);
 
   return (
     <div className="flex flex-col h-full p-4 overflow-hidden">
       {!hasMessages ? (
         <div className="flex-1 flex items-center justify-center">
-          <MessageList messages={messages} isLoading={isStreaming} />
+          <MessageList messages={displayMessages} isLoading={isStreaming} />
         </div>
       ) : (
         <ScrollArea ref={scrollAreaRef} className="flex-1 overflow-hidden">
           <div className="pr-4">
-            <MessageList messages={messages} isLoading={false} />
+            <MessageList messages={displayMessages} isLoading={false} />
             <>
               {agentMessageHistory.map((run, i) => (
                 <AgentActivityFeed key={`history-${i}`} agentMessages={run} isRunning={false} />

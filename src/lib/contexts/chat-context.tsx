@@ -22,6 +22,7 @@ interface ChatContextProps {
 
 interface ChatContextType {
   messages: Message[];
+  displayMessages: Message[];
   input: string;
   handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
@@ -186,6 +187,9 @@ export function ChatProvider({
     [input, isMultiAgentRunning, messages, agentMessages, fileSystem, projectId, refreshFileSystem]
   );
 
+  const isAgentSummary = (m: Message) =>
+    m.role === "assistant" && (m.id.startsWith("multi-agent-") || m.content === "Multi-agent workflow completed. Check the preview to see the results.");
+  const displayMessages = messages.filter((m) => !isAgentSummary(m));
   const status = isMultiAgentRunning ? "streaming" : "ready";
 
   // Track anonymous work
@@ -199,6 +203,7 @@ export function ChatProvider({
     <ChatContext.Provider
       value={{
         messages,
+        displayMessages,
         input,
         handleInputChange,
         handleSubmit,

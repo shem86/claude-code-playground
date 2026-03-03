@@ -45,6 +45,7 @@ vi.mock("../AgentActivityFeed", () => ({
 
 const mockUseChat = {
   messages: [],
+  displayMessages: [],
   input: "",
   handleInputChange: vi.fn(),
   handleSubmit: vi.fn(),
@@ -79,6 +80,7 @@ test("passes correct props to MessageList", () => {
   (useChat as any).mockReturnValue({
     ...mockUseChat,
     messages,
+    displayMessages: messages,
     status: "streaming",
   });
 
@@ -150,12 +152,14 @@ test("scrolls when messages change", () => {
   expect(scrollContainer).toBeDefined();
 
   // Update messages - this should trigger the useEffect
+  const newMessages = [
+    { id: "1", role: "user", content: "Hello" },
+    { id: "2", role: "assistant", content: "Hi there!" },
+  ];
   (useChat as any).mockReturnValue({
     ...mockUseChat,
-    messages: [
-      { id: "1", role: "user", content: "Hello" },
-      { id: "2", role: "assistant", content: "Hi there!" },
-    ],
+    messages: newMessages,
+    displayMessages: newMessages,
   });
 
   rerender(<ChatInterface />);
@@ -171,9 +175,11 @@ test("renders past agent runs from agentMessageHistory as completed feeds", () =
     { id: "a2", agent: "engineer", type: "agent_message", content: "Code", timestamp: 2000 },
   ];
 
+  const messages = [{ id: "1", role: "user", content: "Hello" }];
   (useChat as any).mockReturnValue({
     ...mockUseChat,
-    messages: [{ id: "1", role: "user", content: "Hello" }],
+    messages,
+    displayMessages: messages,
     agentMessageHistory: [pastRun],
     agentMessages: [],
   });
@@ -194,9 +200,11 @@ test("renders both history feeds and live feed together", () => {
     { id: "a3", agent: "engineer", type: "agent_start", content: "Live", timestamp: 3000 },
   ];
 
+  const messages = [{ id: "1", role: "user", content: "Hello" }];
   (useChat as any).mockReturnValue({
     ...mockUseChat,
-    messages: [{ id: "1", role: "user", content: "Hello" }],
+    messages,
+    displayMessages: messages,
     agentMessageHistory: [pastRun],
     agentMessages: liveMessages,
     isMultiAgentRunning: true,
@@ -215,9 +223,11 @@ test("renders both history feeds and live feed together", () => {
 
 test("renders with correct layout classes", () => {
   // Use messages so the ScrollArea is rendered instead of the empty state
+  const messages = [{ id: "1", role: "user", content: "Hello" }];
   (useChat as any).mockReturnValue({
     ...mockUseChat,
-    messages: [{ id: "1", role: "user", content: "Hello" }],
+    messages,
+    displayMessages: messages,
   });
 
   const { container } = render(<ChatInterface />);
