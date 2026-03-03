@@ -1,4 +1,3 @@
-import type { FileNode } from "@/lib/file-system";
 import { VirtualFileSystem } from "@/lib/file-system";
 import { streamText, appendResponseMessages } from "ai";
 import { buildStrReplaceTool } from "@/lib/tools/str-replace";
@@ -6,13 +5,12 @@ import { buildFileManagerTool } from "@/lib/tools/file-manager";
 import { getLanguageModel, isMockProvider } from "@/lib/provider";
 import { generationPrompt } from "@/lib/prompts/generation";
 import { saveProjectState } from "@/lib/agents/save-project";
+import { validateChatRequest } from "@/lib/api/validate-chat-request";
 
 export async function POST(req: Request) {
-  const {
-    messages,
-    files,
-    projectId,
-  }: { messages: any[]; files: Record<string, FileNode>; projectId?: string } = await req.json();
+  const validation = await validateChatRequest(req);
+  if (!validation.ok) return validation.response;
+  const { messages, files, projectId } = validation.data;
 
   messages.unshift({
     role: "system",
