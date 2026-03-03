@@ -17,6 +17,7 @@ interface MainContentLoaderProps {
     name: string;
     messages: any[];
     data: any;
+    agentEvents: any[][];
     createdAt: Date;
     updatedAt: Date;
   };

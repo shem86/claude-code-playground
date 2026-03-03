@@ -17,12 +17,13 @@ export function ChatInterface() {
     status,
     agentMode,
     agentMessages,
+    agentMessageHistory,
     isMultiAgentRunning,
   } = useChat();
 
   const isStreaming = status === "streaming";
   const isLoading = status === "submitted" || isStreaming;
-  const hasMessages = messages.length > 0 || agentMessages.length > 0;
+  const hasMessages = messages.length > 0 || agentMessages.length > 0 || agentMessageHistory.length > 0;
 
   useEffect(() => {
     const scrollContainer = scrollAreaRef.current?.querySelector(
@@ -43,8 +44,15 @@ export function ChatInterface() {
         <ScrollArea ref={scrollAreaRef} className="flex-1 overflow-hidden">
           <div className="pr-4">
             <MessageList messages={messages} isLoading={isStreaming && agentMode === "single"} />
-            {agentMode === "multi" && agentMessages.length > 0 && (
-              <AgentActivityFeed agentMessages={agentMessages} isRunning={isMultiAgentRunning} />
+            {agentMode === "multi" && (
+              <>
+                {agentMessageHistory.map((run, i) => (
+                  <AgentActivityFeed key={`history-${i}`} agentMessages={run} isRunning={false} />
+                ))}
+                {agentMessages.length > 0 && (
+                  <AgentActivityFeed agentMessages={agentMessages} isRunning={isMultiAgentRunning} />
+                )}
+              </>
             )}
           </div>
         </ScrollArea>

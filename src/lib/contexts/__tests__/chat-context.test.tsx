@@ -4,6 +4,8 @@ import { ChatProvider, useChat } from "../chat-context";
 import { useFileSystem } from "../file-system-context";
 import { useChat as useAIChat } from "@ai-sdk/react";
 import * as anonTracker from "@/lib/anon-work-tracker";
+import { AgentRole } from "@/lib/agents/types";
+import type { AgentMessage } from "@/lib/agents/types";
 
 // Enable single agent mode for tests (matches pre-feature-flag default)
 vi.stubEnv("NEXT_PUBLIC_ENABLE_SINGLE_AGENT", "true");
@@ -32,6 +34,8 @@ function TestComponent() {
         <button type="submit">Submit</button>
       </form>
       <div data-testid="status">{chat.status}</div>
+      <div data-testid="agent-history-runs">{chat.agentMessageHistory.length}</div>
+      <div data-testid="agent-history-json">{JSON.stringify(chat.agentMessageHistory)}</div>
     </div>
   );
 }
@@ -174,6 +178,51 @@ describe("ChatContext", () => {
 
     expect(textarea).toBeDefined();
     expect(form).toBeDefined();
+  });
+
+  test("initializes agentMessageHistory from initialAgentEventRuns", () => {
+    const pastRun: AgentMessage[] = [
+      {
+        id: "a1",
+        agent: AgentRole.DESIGN,
+        type: "agent_start",
+        content: "Starting design",
+        timestamp: 1000,
+      },
+      {
+        id: "a2",
+        agent: AgentRole.ENGINEER,
+        type: "agent_message",
+        content: "Code written",
+        timestamp: 2000,
+      },
+    ];
+
+    render(
+      <ChatProvider
+        projectId="test-project"
+        initialAgentEventRuns={[pastRun]}
+      >
+        <TestComponent />
+      </ChatProvider>
+    );
+
+    expect(screen.getByTestId("agent-history-runs").textContent).toBe("1");
+    const history = JSON.parse(screen.getByTestId("agent-history-json").textContent!);
+    expect(history).toHaveLength(1);
+    expect(history[0]).toHaveLength(2);
+    expect(history[0][0].agent).toBe("design");
+    expect(history[0][1].agent).toBe("engineer");
+  });
+
+  test("defaults agentMessageHistory to empty when no initialAgentEventRuns", () => {
+    render(
+      <ChatProvider>
+        <TestComponent />
+      </ChatProvider>
+    );
+
+    expect(screen.getByTestId("agent-history-runs").textContent).toBe("0");
   });
 
   test("handles tool calls", () => {

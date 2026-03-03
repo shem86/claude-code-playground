@@ -39,10 +39,11 @@ function runTypeCheck(configPath) {
     path.dirname(configPath)
   );
 
-  // Override to ensure no emit
+  // Override to ensure no emit (strip incremental to avoid TS5074)
   const compilerOptions = {
     ...parsed.options,
     noEmit: true,
+    incremental: false,
   };
 
   // Create the program

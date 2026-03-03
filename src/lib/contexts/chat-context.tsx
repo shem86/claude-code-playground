@@ -13,23 +13,15 @@ import { useChat as useAIChat } from "@ai-sdk/react";
 import { Message } from "ai";
 import { useFileSystem } from "./file-system-context";
 import { setHasAnonWork } from "@/lib/anon-work-tracker";
-import type { AgentStreamEvent, AgentRoleType } from "@/lib/agents/types";
+import type { AgentStreamEvent, AgentMessage } from "@/lib/agents/types";
+export type { AgentMessage } from "@/lib/agents/types";
 
 export type AgentMode = "single" | "multi";
-
-export interface AgentMessage {
-  id: string;
-  agent: AgentRoleType;
-  type: AgentStreamEvent["type"];
-  content: string;
-  timestamp: number;
-  toolName?: string;
-  toolArgs?: Record<string, any>;
-}
 
 interface ChatContextProps {
   projectId?: string;
   initialMessages?: Message[];
+  initialAgentEventRuns?: AgentMessage[][];
 }
 
 interface ChatContextType {
@@ -41,6 +33,7 @@ interface ChatContextType {
   agentMode: AgentMode;
   setAgentMode: (mode: AgentMode) => void;
   agentMessages: AgentMessage[];
+  agentMessageHistory: AgentMessage[][];
   isMultiAgentRunning: boolean;
 }
 
@@ -102,12 +95,14 @@ export function ChatProvider({
   children,
   projectId,
   initialMessages = [],
+  initialAgentEventRuns = [],
 }: ChatContextProps & { children: ReactNode }) {
   const { fileSystem, handleToolCall, refreshFileSystem } = useFileSystem();
   const [agentMode, setAgentMode] = useState<AgentMode>(
     process.env.NEXT_PUBLIC_ENABLE_SINGLE_AGENT === "true" ? "single" : "multi"
   );
   const [agentMessages, setAgentMessages] = useState<AgentMessage[]>([]);
+  const [agentMessageHistory, setAgentMessageHistory] = useState<AgentMessage[][]>(initialAgentEventRuns);
   const [isMultiAgentRunning, setIsMultiAgentRunning] = useState(false);
   const [multiAgentMessages, setMultiAgentMessages] = useState<Message[]>(initialMessages);
 
@@ -243,6 +238,7 @@ export function ChatProvider({
         agentMode,
         setAgentMode,
         agentMessages,
+        agentMessageHistory,
         isMultiAgentRunning,
       }}
     >

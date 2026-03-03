@@ -49,6 +49,17 @@ export const AGENT_REGISTRY: Record<AgentRoleType, AgentInfo> = {
   },
 };
 
+// Client-side representation of an agent event (persisted to DB and rendered in UI)
+export interface AgentMessage {
+  id: string;
+  agent: AgentRoleType;
+  type: AgentStreamEvent["type"];
+  content: string;
+  timestamp: number;
+  toolName?: string;
+  toolArgs?: Record<string, any>;
+}
+
 // Streamed event from multi-agent workflow to the client
 export interface AgentStreamEvent {
   type: "agent_start" | "agent_message" | "agent_tool_call" | "agent_done" | "workflow_done";

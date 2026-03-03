@@ -39,7 +39,9 @@ vi.mock("../MessageInput", () => ({
 }));
 
 vi.mock("../AgentActivityFeed", () => ({
-  AgentActivityFeed: () => <div data-testid="agent-activity-feed" />,
+  AgentActivityFeed: ({ isRunning }: any) => (
+    <div data-testid="agent-activity-feed" data-running={isRunning} />
+  ),
 }));
 
 const mockUseChat = {
@@ -51,6 +53,7 @@ const mockUseChat = {
   agentMode: "single" as const,
   setAgentMode: vi.fn(),
   agentMessages: [],
+  agentMessageHistory: [],
   isMultiAgentRunning: false,
 };
 
@@ -162,6 +165,56 @@ test("scrolls when messages change", () => {
   // Verify component re-rendered with new messages
   const messageList = screen.getByTestId("message-list");
   expect(messageList.textContent).toContain("2 messages");
+});
+
+test("renders past agent runs from agentMessageHistory as completed feeds", () => {
+  const pastRun = [
+    { id: "a1", agent: "design", type: "agent_start", content: "Starting", timestamp: 1000 },
+    { id: "a2", agent: "engineer", type: "agent_message", content: "Code", timestamp: 2000 },
+  ];
+
+  (useChat as any).mockReturnValue({
+    ...mockUseChat,
+    agentMode: "multi",
+    messages: [{ id: "1", role: "user", content: "Hello" }],
+    agentMessageHistory: [pastRun],
+    agentMessages: [],
+  });
+
+  render(<ChatInterface />);
+
+  const feeds = screen.getAllByTestId("agent-activity-feed");
+  expect(feeds).toHaveLength(1);
+  // History feeds should render as not running
+  expect(feeds[0].getAttribute("data-running")).toBe("false");
+});
+
+test("renders both history feeds and live feed together", () => {
+  const pastRun = [
+    { id: "a1", agent: "design", type: "agent_start", content: "Starting", timestamp: 1000 },
+  ];
+  const liveMessages = [
+    { id: "a3", agent: "engineer", type: "agent_start", content: "Live", timestamp: 3000 },
+  ];
+
+  (useChat as any).mockReturnValue({
+    ...mockUseChat,
+    agentMode: "multi",
+    messages: [{ id: "1", role: "user", content: "Hello" }],
+    agentMessageHistory: [pastRun],
+    agentMessages: liveMessages,
+    isMultiAgentRunning: true,
+  });
+
+  render(<ChatInterface />);
+
+  const feeds = screen.getAllByTestId("agent-activity-feed");
+  // 1 history feed + 1 live feed = 2
+  expect(feeds).toHaveLength(2);
+  // First feed (history) is not running
+  expect(feeds[0].getAttribute("data-running")).toBe("false");
+  // Second feed (live) is running
+  expect(feeds[1].getAttribute("data-running")).toBe("true");
 });
 
 test("renders with correct layout classes", () => {

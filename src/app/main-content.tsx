@@ -22,6 +22,7 @@ interface MainContentProps {
     name: string;
     messages: any[];
     data: any;
+    agentEvents: any[][];
     createdAt: Date;
     updatedAt: Date;
   };
@@ -32,7 +33,7 @@ export function MainContent({ user, project }: MainContentProps) {
 
   return (
     <FileSystemProvider initialData={project?.data}>
-      <ChatProvider projectId={project?.id} initialMessages={project?.messages}>
+      <ChatProvider projectId={project?.id} initialMessages={project?.messages} initialAgentEventRuns={project?.agentEvents}>
         <div className="h-screen w-screen overflow-hidden bg-neutral-50">
           <ResizablePanelGroup direction="horizontal" className="h-full">
             {/* Left Panel - Chat */}

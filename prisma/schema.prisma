@@ -25,8 +25,9 @@ model Project {
   id        String   @id @default(cuid())
   name      String
   userId    String?
-  messages  String   @default("[]")
-  data      String   @default("{}")
+  messages    String   @default("[]")
+  agentEvents String   @default("[]")
+  data        String   @default("{}")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
