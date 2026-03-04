@@ -27,6 +27,7 @@ function extractTextContent(content: string | Array<{ type: string; text?: strin
 
 // Graph state definition
 const MAX_RETRIES = 1; // Max times to nudge an agent that didn't use tools
+const MAX_TOOL_LOOPS = 15; // Max tool-call round-trips per agent before forcing next phase
 const WorkflowState = Annotation.Root({
   ...MessagesAnnotation.spec,
   designSpec: Annotation<string>({ reducer: (_, b) => b, default: () => "" }),
@@ -36,6 +37,9 @@ const WorkflowState = Annotation.Root({
   designRetries: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
   engineerRetries: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
   qaRetries: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
+  designToolLoops: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
+  engineerToolLoops: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
+  qaToolLoops: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
   engineerStartIdx: Annotation<number>({ reducer: (_, b) => b, default: () => -1 }),
   qaStartIdx: Annotation<number>({ reducer: (_, b) => b, default: () => -1 }),
 });
@@ -105,16 +109,16 @@ export function buildMultiAgentGraph(
       }
     }
 
-    return { messages: [response], currentAgent: "design" };
+    return { messages: [response], currentAgent: "design", designToolLoops: state.designToolLoops + 1 };
   }
 
   // Route design agent: if tool calls pending, run tools; if no tools and retries left, nudge; otherwise move on
   function routeDesign(state: WorkflowStateType) {
     const lastMsg = state.messages[state.messages.length - 1];
     if (lastMsg.getType() === "ai" && (lastMsg as AIMessage).tool_calls?.length) {
+      if (state.designToolLoops >= MAX_TOOL_LOOPS) return "engineer";
       return "design_tools";
     }
-    // If design didn't use tools and we haven't retried yet, nudge it
     if (state.designRetries < MAX_RETRIES) {
       return "design_nudge";
     }
@@ -199,13 +203,14 @@ export function buildMultiAgentGraph(
       }
     }
 
-    return { messages: [response], currentAgent: "engineer", engineerStartIdx: startIdx };
+    return { messages: [response], currentAgent: "engineer", engineerStartIdx: startIdx, engineerToolLoops: state.engineerToolLoops + 1 };
   }
 
   // Route engineer: if tool calls, run tools; if no tools and retries left, nudge; otherwise move on
   function routeEngineer(state: WorkflowStateType) {
     const lastMsg = state.messages[state.messages.length - 1];
     if (lastMsg.getType() === "ai" && (lastMsg as AIMessage).tool_calls?.length) {
+      if (state.engineerToolLoops >= MAX_TOOL_LOOPS) return "qa";
       return "engineer_tools";
     }
     if (state.engineerRetries < MAX_RETRIES) {
@@ -259,13 +264,14 @@ export function buildMultiAgentGraph(
       }
     }
 
-    return { messages: [response], currentAgent: "qa", qaStartIdx: startIdx };
+    return { messages: [response], currentAgent: "qa", qaStartIdx: startIdx, qaToolLoops: state.qaToolLoops + 1 };
   }
 
   // Route QA: if tool calls, run tools; if no tools and retries left, nudge; otherwise decide
   function routeQA(state: WorkflowStateType) {
     const lastMsg = state.messages[state.messages.length - 1];
     if (lastMsg.getType() === "ai" && (lastMsg as AIMessage).tool_calls?.length) {
+      if (state.qaToolLoops >= MAX_TOOL_LOOPS) return "qa_decision";
       return "qa_tools";
     }
     if (state.qaRetries < MAX_RETRIES) {
@@ -316,7 +322,7 @@ export function buildMultiAgentGraph(
         agent: AgentRole.QA,
         content: `Revision needed (iteration ${iteration}/${MAX_ITERATIONS}). Sending back to Engineer...`,
       });
-      return { reviewNotes, iterationCount: iteration, currentAgent: "engineer", engineerStartIdx: -1 };
+      return { reviewNotes, iterationCount: iteration, currentAgent: "engineer", engineerStartIdx: -1, engineerToolLoops: 0 };
     }
 
     onEvent?.({
