@@ -4,11 +4,13 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Plus, LogOut, FolderOpen, ChevronDown } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Plus, LogOut, FolderOpen, ChevronDown, Pencil, Check } from "lucide-react";
 import { AuthDialog } from "@/components/auth/AuthDialog";
 import { signOut } from "@/actions";
 import { getProjects } from "@/actions/get-projects";
 import { createProject } from "@/actions/create-project";
+import { renameProject } from "@/actions/rename-project";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
@@ -18,6 +20,13 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface HeaderActionsProps {
   user?: {
@@ -42,6 +51,15 @@ export function HeaderActions({ user, projectId }: HeaderActionsProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // New project name dialog
+  const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+
+  // Rename dialog
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [renamingProject, setRenamingProject] = useState<Project | null>(null);
+  const [renameName, setRenameName] = useState("");
 
   // Load projects initially
   useEffect(() => {
@@ -81,14 +99,34 @@ export function HeaderActions({ user, projectId }: HeaderActionsProps) {
     await signOut();
   };
 
-  // Create a new project with a random name and navigate to it
-  const handleNewDesign = async () => {
-    const project = await createProject({
-      name: `Design #${~~(Math.random() * 100000)}`,
-      messages: [],
-      data: {},
-    });
+  // Open the name prompt dialog instead of creating immediately
+  const handleNewDesign = () => {
+    setNewProjectName("");
+    setNewProjectDialogOpen(true);
+  };
+
+  const handleCreateProject = async () => {
+    const name = newProjectName.trim() || `Design #${~~(Math.random() * 100000)}`;
+    const project = await createProject({ name, messages: [], data: {} });
+    setNewProjectDialogOpen(false);
     router.push(`/${project.id}`);
+  };
+
+  const handleRenameClick = (project: Project, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRenamingProject(project);
+    setRenameName(project.name);
+    setRenameDialogOpen(true);
+    setProjectsOpen(false);
+  };
+
+  const handleRenameConfirm = async () => {
+    if (!renamingProject) return;
+    await renameProject(renamingProject.id, renameName.trim() || renamingProject.name);
+    setProjects((prev) =>
+      prev.map((p) => (p.id === renamingProject.id ? { ...p, name: renameName.trim() || p.name } : p))
+    );
+    setRenameDialogOpen(false);
   };
 
   // Unauthenticated: show sign-in/sign-up buttons
@@ -134,14 +172,22 @@ export function HeaderActions({ user, projectId }: HeaderActionsProps) {
                     <CommandItem
                       key={project.id}
                       value={project.name}
+                      className="group"
                       onSelect={() => {
                         router.push(`/${project.id}`);
                         setProjectsOpen(false);
                         setSearchQuery("");
                       }}>
-                      <div className="flex flex-col">
+                      <Check className={`h-4 w-4 shrink-0 ${project.id === projectId ? "opacity-100" : "opacity-0"}`} />
+                      <div className="flex flex-1 flex-col">
                         <span className="font-medium">{project.name}</span>
                       </div>
+                      <button
+                        className="ml-2 rounded p-1 opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:bg-accent"
+                        aria-label={`Rename ${project.name}`}
+                        onClick={(e) => handleRenameClick(project, e)}>
+                        <Pencil className="h-3 w-3" />
+                      </button>
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -164,6 +210,50 @@ export function HeaderActions({ user, projectId }: HeaderActionsProps) {
         title="Sign out">
         <LogOut className="h-4 w-4" />
       </Button>
+
+      {/* New project name dialog */}
+      <Dialog open={newProjectDialogOpen} onOpenChange={setNewProjectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New Project</DialogTitle>
+          </DialogHeader>
+          <Input
+            placeholder="Project name"
+            value={newProjectName}
+            onChange={(e) => setNewProjectName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleCreateProject()}
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewProjectDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateProject}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename dialog */}
+      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Project</DialogTitle>
+          </DialogHeader>
+          <Input
+            placeholder="Project name"
+            value={renameName}
+            onChange={(e) => setRenameName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleRenameConfirm()}
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleRenameConfirm}>Rename</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
