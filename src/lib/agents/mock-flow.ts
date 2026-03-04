@@ -358,14 +358,6 @@ export async function runMockMultiAgentFlow(
           content: "Route: Design → Engineer → QA",
         });
         await delay(300);
-      } else {
-        await sendEvent({
-          type: "agent_start",
-          agent: AgentRole.ORCHESTRATOR,
-          content:
-            "Starting multi-agent workflow — this is a mock demo (no API key). Add an ANTHROPIC_API_KEY to .env for real generation.",
-        });
-        await delay(400);
       }
 
       // --- Design Agent ---

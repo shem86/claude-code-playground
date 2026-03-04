@@ -258,13 +258,8 @@ describe("runRealMultiAgentFlow — agent event persistence", () => {
     // The 4th argument should be the collected agent events
     const savedAgentRun = vi.mocked(saveProjectState).mock.calls[0][3];
     expect(savedAgentRun).toBeDefined();
-    // 1 orchestrator start + 6 graph events + workflow_done
-    expect(savedAgentRun!.length).toBeGreaterThanOrEqual(7);
-    // First event is orchestrator start
-    expect(savedAgentRun![0]).toMatchObject({
-      agent: "orchestrator",
-      type: "agent_start",
-    });
+    // 6 graph events + workflow_done
+    expect(savedAgentRun!.length).toBeGreaterThanOrEqual(6);
     // Should include events from design and engineer agents
     const designEvents = savedAgentRun!.filter((e: any) => e.agent === "design");
     expect(designEvents.length).toBeGreaterThanOrEqual(3);
@@ -306,14 +301,10 @@ describe("runRealMultiAgentFlow — agent event persistence", () => {
     const errorMsg = savedMessages.find((m: any) => m.role === "assistant");
     expect(errorMsg.content).toContain("LLM rate limit exceeded");
 
-    // Check agent events were saved (orchestrator start + 2 design events)
+    // Check agent events were saved (2 design events)
     const savedAgentRun = vi.mocked(saveProjectState).mock.calls[0][3];
     expect(savedAgentRun).toBeDefined();
-    expect(savedAgentRun!.length).toBeGreaterThanOrEqual(3);
-    expect(savedAgentRun![0]).toMatchObject({
-      agent: "orchestrator",
-      type: "agent_start",
-    });
+    expect(savedAgentRun!.length).toBeGreaterThanOrEqual(2);
     const designEvents = savedAgentRun!.filter((e: any) => e.agent === "design");
     expect(designEvents.length).toBeGreaterThanOrEqual(2);
   });

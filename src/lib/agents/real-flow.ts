@@ -85,18 +85,6 @@ export function runRealMultiAgentFlow(
     const collectedEvents: AgentMessage[] = [];
 
     try {
-      // In pipeline mode, emit a manual orchestrator start event.
-      // In supervisor mode, the supervisor node emits its own events.
-      if (mode === "pipeline") {
-        const orchestratorStart: AgentStreamEvent = {
-          type: "agent_start",
-          agent: AgentRole.ORCHESTRATOR,
-          content: "Starting multi-agent workflow...",
-        };
-        collectedEvents.push(toAgentMessage(orchestratorStart));
-        await sendEvent(orchestratorStart);
-      }
-
       // Dynamic imports so LangChain only loads when actually needed
       const { buildMultiAgentGraph } = await import("@/lib/agents/graph");
       const { HumanMessage } = await import("@langchain/core/messages");
