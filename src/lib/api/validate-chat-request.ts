@@ -1,10 +1,16 @@
 import type { FileNode } from "@/lib/file-system";
+import type { WorkflowMode } from "@/lib/agents/types";
+
+interface Message {
+  role: string;
+  content: string | { text?: string }[];
+}
 
 interface ChatRequestData {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  messages: any[];
+  messages: Message[];
   files: Record<string, FileNode>;
   projectId: string | undefined;
+  mode: WorkflowMode;
 }
 
 type ValidationResult =
@@ -29,7 +35,7 @@ export async function validateChatRequest(req: Request): Promise<ValidationResul
     };
   }
 
-  const { messages, files, projectId } = body as Record<string, unknown>;
+  const { messages, files, projectId, mode } = body as Record<string, unknown>;
 
   if (!Array.isArray(messages)) {
     return {
@@ -51,12 +57,12 @@ export async function validateChatRequest(req: Request): Promise<ValidationResul
       messages,
       files: files as Record<string, FileNode>,
       projectId: typeof projectId === "string" ? projectId : undefined,
+      mode: mode === "supervisor" ? "supervisor" : "pipeline",
     },
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function extractUserContent(messages: any[]): string {
+export function extractUserContent(messages: Message[]): string {
   const userMessages = messages.filter((m) => m.role === "user");
   const last = userMessages[userMessages.length - 1];
   if (!last) return "Create a React component";

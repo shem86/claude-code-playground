@@ -1,5 +1,5 @@
 import type { VirtualFileSystem } from "@/lib/file-system";
-import { AgentRole, type AgentStreamEvent } from "@/lib/agents/types";
+import { AgentRole, type AgentStreamEvent, type WorkflowMode } from "@/lib/agents/types";
 import { saveProjectState } from "@/lib/agents/save-project";
 
 function detectComponent(prompt: string) {
@@ -328,21 +328,45 @@ export async function runMockMultiAgentFlow(
   sendEvent: (e: AgentStreamEvent) => Promise<void>,
   writer: WritableStreamDefaultWriter,
   messages: any[],
-  projectId?: string
+  projectId?: string,
+  mode: WorkflowMode = "pipeline"
 ) {
   (async () => {
     try {
       const component = detectComponent(userContent);
       const designSpec = getDesignSpec(component);
 
-      // --- Orchestrator: kick off ---
-      await sendEvent({
-        type: "agent_start",
-        agent: AgentRole.ORCHESTRATOR,
-        content:
-          "Starting multi-agent workflow — this is a mock demo (no API key). Add an ANTHROPIC_API_KEY to .env for real generation.",
-      });
-      await delay(400);
+      // --- Orchestrator / Supervisor: kick off ---
+      if (mode === "supervisor") {
+        await sendEvent({
+          type: "agent_start",
+          agent: AgentRole.ORCHESTRATOR,
+          content: "Analyzing request to determine workflow route... (mock)",
+        });
+        await delay(400);
+
+        await sendEvent({
+          type: "agent_message",
+          agent: AgentRole.ORCHESTRATOR,
+          content: "This is a new component request, so the full pipeline (Design → Engineer → QA) is appropriate.",
+        });
+        await delay(300);
+
+        await sendEvent({
+          type: "agent_done",
+          agent: AgentRole.ORCHESTRATOR,
+          content: "Route: Design → Engineer → QA",
+        });
+        await delay(300);
+      } else {
+        await sendEvent({
+          type: "agent_start",
+          agent: AgentRole.ORCHESTRATOR,
+          content:
+            "Starting multi-agent workflow — this is a mock demo (no API key). Add an ANTHROPIC_API_KEY to .env for real generation.",
+        });
+        await delay(400);
+      }
 
       // --- Design Agent ---
       await sendEvent({

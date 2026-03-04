@@ -1,5 +1,5 @@
 import type { VirtualFileSystem } from "@/lib/file-system";
-import { AgentRole, type AgentStreamEvent, type AgentMessage } from "@/lib/agents/types";
+import { AgentRole, type AgentStreamEvent, type AgentMessage, type WorkflowMode } from "@/lib/agents/types";
 import { saveProjectState } from "@/lib/agents/save-project";
 
 const MAX_TURNS = 5;
@@ -78,19 +78,24 @@ export function runRealMultiAgentFlow(
   sendEvent: (e: AgentStreamEvent) => Promise<void>,
   writer: WritableStreamDefaultWriter,
   messages: any[],
-  projectId?: string
+  projectId?: string,
+  mode: WorkflowMode = "pipeline"
 ): void {
   (async () => {
     const collectedEvents: AgentMessage[] = [];
 
     try {
-      const orchestratorStart: AgentStreamEvent = {
-        type: "agent_start",
-        agent: AgentRole.ORCHESTRATOR,
-        content: "Starting multi-agent workflow...",
-      };
-      collectedEvents.push(toAgentMessage(orchestratorStart));
-      await sendEvent(orchestratorStart);
+      // In pipeline mode, emit a manual orchestrator start event.
+      // In supervisor mode, the supervisor node emits its own events.
+      if (mode === "pipeline") {
+        const orchestratorStart: AgentStreamEvent = {
+          type: "agent_start",
+          agent: AgentRole.ORCHESTRATOR,
+          content: "Starting multi-agent workflow...",
+        };
+        collectedEvents.push(toAgentMessage(orchestratorStart));
+        await sendEvent(orchestratorStart);
+      }
 
       // Dynamic imports so LangChain only loads when actually needed
       const { buildMultiAgentGraph } = await import("@/lib/agents/graph");
@@ -103,7 +108,7 @@ export function runRealMultiAgentFlow(
         } catch {
           // Writer may be closed
         }
-      });
+      }, mode);
 
       // Include existing file context so agents know what's already in the filesystem
       const existingFiles = fileSystem.getAllFiles();

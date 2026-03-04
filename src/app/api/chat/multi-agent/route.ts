@@ -8,7 +8,7 @@ import { validateChatRequest, extractUserContent } from "@/lib/api/validate-chat
 export async function POST(req: Request) {
   const validation = await validateChatRequest(req);
   if (!validation.ok) return validation.response;
-  const { messages, files, projectId } = validation.data;
+  const { messages, files, projectId, mode } = validation.data;
 
   // Reconstruct the VirtualFileSystem from serialized data
   const fileSystem = new VirtualFileSystem();
@@ -32,9 +32,9 @@ export async function POST(req: Request) {
   const userContent = extractUserContent(messages);
 
   if (isMockProvider()) {
-    runMockMultiAgentFlow(userContent, fileSystem, sendEvent, writer, messages, projectId);
+    runMockMultiAgentFlow(userContent, fileSystem, sendEvent, writer, messages, projectId, mode);
   } else {
-    runRealMultiAgentFlow(userContent, fileSystem, sendEvent, writer, messages, projectId);
+    runRealMultiAgentFlow(userContent, fileSystem, sendEvent, writer, messages, projectId, mode);
   }
 
   return new Response(stream.readable, {

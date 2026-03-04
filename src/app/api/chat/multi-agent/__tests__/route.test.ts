@@ -339,6 +339,94 @@ describe("runRealMultiAgentFlow — agent event persistence", () => {
   });
 });
 
+describe("Supervisor mode — mode parameter passthrough", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  test("passes mode='supervisor' to buildMultiAgentGraph", async () => {
+    const { POST } = await import("../route");
+    const { buildMultiAgentGraph } = await import("@/lib/agents/graph");
+
+    const fakeGraph = {
+      invoke: vi.fn().mockResolvedValue({
+        messages: [{ getType: () => "ai", content: "Done." }],
+      }),
+    };
+    vi.mocked(buildMultiAgentGraph).mockReturnValue(fakeGraph as any);
+
+    const request = new Request("http://localhost/api/chat/multi-agent", {
+      method: "POST",
+      body: JSON.stringify({
+        messages: [{ role: "user", content: "make a button" }],
+        files: {},
+        mode: "supervisor",
+      }),
+    });
+
+    const response = await POST(request);
+    await readSSEStream(response);
+
+    // buildMultiAgentGraph should have been called with mode="supervisor" as the 3rd arg
+    expect(buildMultiAgentGraph).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(Function),
+      "supervisor"
+    );
+  });
+
+  test("defaults to pipeline mode when mode is not provided", async () => {
+    const { POST } = await import("../route");
+    const { buildMultiAgentGraph } = await import("@/lib/agents/graph");
+
+    const fakeGraph = {
+      invoke: vi.fn().mockResolvedValue({
+        messages: [{ getType: () => "ai", content: "Done." }],
+      }),
+    };
+    vi.mocked(buildMultiAgentGraph).mockReturnValue(fakeGraph as any);
+
+    const request = makeRequest();
+    const response = await POST(request);
+    await readSSEStream(response);
+
+    expect(buildMultiAgentGraph).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(Function),
+      "pipeline"
+    );
+  });
+
+  test("uses mock flow with mode='supervisor' when mock provider", async () => {
+    const { isMockProvider } = await import("@/lib/provider");
+    vi.mocked(isMockProvider).mockReturnValue(true);
+
+    const { POST } = await import("../route");
+    const { runMockMultiAgentFlow } = await import("@/lib/agents/mock-flow");
+
+    const request = new Request("http://localhost/api/chat/multi-agent", {
+      method: "POST",
+      body: JSON.stringify({
+        messages: [{ role: "user", content: "make a button" }],
+        files: {},
+        mode: "supervisor",
+      }),
+    });
+
+    await POST(request);
+
+    expect(runMockMultiAgentFlow).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.anything(),
+      expect.any(Function),
+      expect.anything(),
+      expect.any(Array),
+      undefined,
+      "supervisor"
+    );
+  });
+});
+
 describe("runRealMultiAgentFlow — Issue #1: fire-and-forget promise", () => {
   beforeEach(() => {
     vi.restoreAllMocks();

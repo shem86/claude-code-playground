@@ -10,6 +10,8 @@ export const AgentRole = {
 
 export type AgentRoleType = (typeof AgentRole)[keyof typeof AgentRole];
 
+export type WorkflowMode = "pipeline" | "supervisor";
+
 export interface AgentInfo {
   role: AgentRoleType;
   name: string;

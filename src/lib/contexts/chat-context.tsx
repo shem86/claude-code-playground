@@ -11,7 +11,7 @@ import {
 import { Message } from "ai";
 import { useFileSystem } from "./file-system-context";
 import { setHasAnonWork } from "@/lib/anon-work-tracker";
-import type { AgentStreamEvent, AgentMessage } from "@/lib/agents/types";
+import type { AgentStreamEvent, AgentMessage, WorkflowMode } from "@/lib/agents/types";
 export type { AgentMessage } from "@/lib/agents/types";
 
 interface ChatContextProps {
@@ -30,6 +30,8 @@ interface ChatContextType {
   agentMessages: AgentMessage[];
   agentMessageHistory: AgentMessage[][];
   isMultiAgentRunning: boolean;
+  workflowMode: WorkflowMode;
+  setWorkflowMode: (mode: WorkflowMode) => void;
 }
 
 function parseSSEEvent(line: string): AgentStreamEvent | null {
@@ -98,6 +100,7 @@ export function ChatProvider({
   const [isMultiAgentRunning, setIsMultiAgentRunning] = useState(false);
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
+  const [workflowMode, setWorkflowMode] = useState<WorkflowMode>("pipeline");
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -127,6 +130,7 @@ export function ChatProvider({
             messages: [...messages, userMessage],
             files: fileSystem.serialize(),
             projectId,
+            mode: workflowMode,
           }),
         });
 
@@ -184,7 +188,7 @@ export function ChatProvider({
         setIsMultiAgentRunning(false);
       }
     },
-    [input, isMultiAgentRunning, messages, agentMessages, fileSystem, projectId, refreshFileSystem]
+    [input, isMultiAgentRunning, messages, agentMessages, fileSystem, projectId, refreshFileSystem, workflowMode]
   );
 
   const isAgentSummary = (m: Message) =>
@@ -211,6 +215,8 @@ export function ChatProvider({
         agentMessages,
         agentMessageHistory,
         isMultiAgentRunning,
+        workflowMode,
+        setWorkflowMode,
       }}
     >
       {children}

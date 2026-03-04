@@ -8,7 +8,8 @@ import { buildFileManagerLangChainTool } from "@/lib/tools/file-manager";
 import { buildDesignSpecTool, DESIGN_SYSTEM_PROMPT } from "./design-agent";
 import { ENGINEER_SYSTEM_PROMPT } from "./engineer-agent";
 import { buildReviewTool, QA_SYSTEM_PROMPT } from "./qa-agent";
-import { AgentRole, type AgentStreamEvent } from "./types";
+import { AgentRole, type AgentStreamEvent, type WorkflowMode } from "./types";
+import { SUPERVISOR_SYSTEM_PROMPT, supervisorRouteSchema, type SupervisorRoute } from "./supervisor-agent";
 
 const MODEL = "claude-haiku-4-5";
 const MAX_ITERATIONS = 2;
@@ -42,13 +43,15 @@ const WorkflowState = Annotation.Root({
   qaToolLoops: Annotation<number>({ reducer: (_, b) => b, default: () => 0 }),
   engineerStartIdx: Annotation<number>({ reducer: (_, b) => b, default: () => -1 }),
   qaStartIdx: Annotation<number>({ reducer: (_, b) => b, default: () => -1 }),
+  supervisorPlan: Annotation<SupervisorRoute["route"]>({ reducer: (_, b) => b, default: () => "full" }),
 });
 
 export type WorkflowStateType = typeof WorkflowState.State;
 
 export function buildMultiAgentGraph(
   fileSystem: VirtualFileSystem,
-  onEvent?: (event: AgentStreamEvent) => void
+  onEvent?: (event: AgentStreamEvent) => void,
+  mode: WorkflowMode = "pipeline"
 ) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -213,6 +216,12 @@ export function buildMultiAgentGraph(
     if (lastMsg.getType() === "ai" && (lastMsg as AIMessage).tool_calls?.length) {
       return "engineer_tools"; // Always execute — limit checked AFTER tools complete
     }
+    // If supervisor chose engineer_only, skip QA
+    if (mode === "supervisor" && state.supervisorPlan === "engineer_only") {
+      if (state.engineerToolLoops > 1) return END;
+      if (state.engineerRetries < MAX_RETRIES) return "engineer_nudge";
+      return END;
+    }
     // If agent already used tools (toolLoops > 1), this is a natural "I'm done" signal — don't nudge
     if (state.engineerToolLoops > 1) return "qa";
     if (state.engineerRetries < MAX_RETRIES) {
@@ -223,7 +232,8 @@ export function buildMultiAgentGraph(
 
   // After engineer tools execute, check if we've hit the loop limit
   function routeAfterEngineerTools(state: WorkflowStateType) {
-    if (state.engineerToolLoops >= MAX_TOOL_LOOPS) return "qa";
+    const nextPhase = mode === "supervisor" && state.supervisorPlan === "engineer_only" ? END : "qa";
+    if (state.engineerToolLoops >= MAX_TOOL_LOOPS) return nextPhase;
     return "engineer";
   }
 
@@ -359,6 +369,55 @@ export function buildMultiAgentGraph(
     return END;
   }
 
+  // --- Supervisor Node (only used in supervisor mode) ---
+  async function supervisorNode(state: WorkflowStateType) {
+    onEvent?.({
+      type: "agent_start",
+      agent: AgentRole.ORCHESTRATOR,
+      content: "Analyzing request to determine workflow route...",
+    });
+
+    let route: SupervisorRoute["route"] = "full";
+    let reasoning = "Defaulting to full pipeline.";
+
+    try {
+      const supervisorModel = model.withStructuredOutput(supervisorRouteSchema);
+      const systemMsg = new SystemMessage(SUPERVISOR_SYSTEM_PROMPT);
+      const userMessages = state.messages.filter(m => m.getType() === "human");
+      const result = await supervisorModel.invoke([systemMsg, ...userMessages]);
+      route = result.route;
+      reasoning = result.reasoning;
+    } catch (error) {
+      console.error("Supervisor routing failed, falling back to full pipeline:", error);
+      reasoning = "Routing failed — defaulting to full pipeline.";
+    }
+
+    onEvent?.({
+      type: "agent_message",
+      agent: AgentRole.ORCHESTRATOR,
+      content: reasoning,
+    });
+
+    const routeLabels: Record<string, string> = {
+      full: "Design → Engineer → QA",
+      engineer_qa: "Engineer → QA",
+      engineer_only: "Engineer only",
+    };
+
+    onEvent?.({
+      type: "agent_done",
+      agent: AgentRole.ORCHESTRATOR,
+      content: `Route: ${routeLabels[route] || route}`,
+    });
+
+    return { supervisorPlan: route };
+  }
+
+  function routeSupervisor(state: WorkflowStateType) {
+    if (state.supervisorPlan === "full") return "design";
+    return "engineer";
+  }
+
   // --- Build the graph ---
   const graph = new StateGraph(WorkflowState)
     // Design phase
@@ -375,9 +434,21 @@ export function buildMultiAgentGraph(
     // Nudge nodes (retry agents that didn't use tools)
     .addNode("design_nudge", designNudgeNode)
     .addNode("engineer_nudge", engineerNudgeNode)
-    .addNode("qa_nudge", qaNudgeNode)
-    // Edges
-    .addEdge(START, "design")
+    .addNode("qa_nudge", qaNudgeNode);
+
+  if (mode === "supervisor") {
+    graph
+      .addNode("supervisor", supervisorNode)
+      .addEdge(START, "supervisor")
+      .addConditionalEdges("supervisor", routeSupervisor, {
+        design: "design",
+        engineer: "engineer",
+      });
+  } else {
+    graph.addEdge(START, "design");
+  }
+
+  graph
     .addConditionalEdges("design", routeDesign, {
       design_tools: "design_tools",
       design_nudge: "design_nudge",
@@ -390,10 +461,12 @@ export function buildMultiAgentGraph(
       engineer_tools: "engineer_tools",
       engineer_nudge: "engineer_nudge",
       qa: "qa",
+      [END]: END,
     })
     .addConditionalEdges("engineer_tools", routeAfterEngineerTools, {
       engineer: "engineer",
       qa: "qa",
+      [END]: END,
     })
     .addEdge("engineer_nudge", "engineer")
     .addConditionalEdges("qa", routeQA, {

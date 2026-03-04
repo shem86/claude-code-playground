@@ -54,6 +54,8 @@ const mockUseChat = {
   agentMessages: [],
   agentMessageHistory: [],
   isMultiAgentRunning: false,
+  workflowMode: "pipeline" as const,
+  setWorkflowMode: vi.fn(),
 };
 
 beforeEach(() => {

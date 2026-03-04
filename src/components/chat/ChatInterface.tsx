@@ -6,7 +6,47 @@ import { AgentActivityFeed } from "./AgentActivityFeed";
 import { MessageInput } from "./MessageInput";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChat } from "@/lib/contexts/chat-context";
-import { Bot } from "lucide-react";
+import { Bot, GitBranch, Workflow } from "lucide-react";
+import type { WorkflowMode } from "@/lib/agents/types";
+
+function WorkflowModeToggle({
+  mode,
+  onChange,
+}: {
+  mode: WorkflowMode;
+  onChange: (mode: WorkflowMode) => void;
+}) {
+  const options: { value: WorkflowMode; label: string; icon: React.ReactNode; desc: string }[] = [
+    { value: "pipeline", label: "Pipeline", icon: <GitBranch className="h-3.5 w-3.5" />, desc: "Design → Engineer → QA" },
+    { value: "supervisor", label: "Supervisor", icon: <Workflow className="h-3.5 w-3.5" />, desc: "AI picks the route" },
+  ];
+
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <span className="text-xs text-neutral-400 font-medium uppercase tracking-wide">Workflow Mode</span>
+      <div className="flex rounded-lg bg-neutral-100 p-0.5">
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              mode === opt.value
+                ? "bg-white text-neutral-900 shadow-sm"
+                : "text-neutral-500 hover:text-neutral-700"
+            }`}
+          >
+            {opt.icon}
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      <span className="text-xs text-neutral-400">
+        {options.find((o) => o.value === mode)?.desc}
+      </span>
+    </div>
+  );
+}
 
 export function ChatInterface() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -19,6 +59,8 @@ export function ChatInterface() {
     agentMessages,
     agentMessageHistory,
     isMultiAgentRunning,
+    workflowMode,
+    setWorkflowMode,
   } = useChat();
 
   const isStreaming = status === "streaming";
@@ -96,9 +138,10 @@ export function ChatInterface() {
             <p className="text-neutral-900 font-semibold text-lg mb-2">
               Start a conversation to generate React components
             </p>
-            <p className="text-neutral-500 text-sm max-w-sm">
+            <p className="text-neutral-500 text-sm max-w-sm mb-5">
               I can help you create buttons, forms, cards, and more
             </p>
+            <WorkflowModeToggle mode={workflowMode} onChange={setWorkflowMode} />
           </div>
         </div>
       ) : (
