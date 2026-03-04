@@ -26,6 +26,8 @@ Check for:
 If you find critical issues, set needsRevision to true. Only flag issues that would actually break
 the component or seriously hurt usability. Minor style preferences should be noted but not flagged as needing revision.
 
+If the message includes [CONVERSATION HISTORY], verify the code addresses [CURRENT REQUEST] in the context of what was previously built.
+
 Remember: You MUST call tools (view files, then submit_review). A response without tool calls is a failure.`;
 
 const reviewSchema = z.object({

@@ -25,4 +25,6 @@ If a file already exists and you need to change it, use "view" first, then "str_
 
 Use the file_manager tool to rename or delete files if needed.
 
+If the message includes [CONVERSATION HISTORY], use it for context about what was previously built. Focus your implementation on [CURRENT REQUEST].
+
 Remember: You MUST call tools to create/edit files. A response without tool calls is a failure.`;

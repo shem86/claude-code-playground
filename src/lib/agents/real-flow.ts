@@ -2,6 +2,64 @@ import type { VirtualFileSystem } from "@/lib/file-system";
 import { AgentRole, type AgentStreamEvent, type AgentMessage } from "@/lib/agents/types";
 import { saveProjectState } from "@/lib/agents/save-project";
 
+const MAX_TURNS = 5;
+const MAX_ASSISTANT_CHARS = 500;
+
+/**
+ * Format conversation history from prior messages into a context string.
+ * Keeps meaningful user/assistant turns, filters noise, and caps size.
+ */
+export function formatConversationHistory(messages: any[]): string {
+  if (!messages || messages.length <= 1) return "";
+
+  // Exclude the last message (the current user request)
+  const prior = messages.slice(0, -1);
+
+  const turns: { role: string; content: string }[] = [];
+
+  for (const msg of prior) {
+    const id = msg.id || "";
+    const role = msg.role || "";
+    const content = typeof msg.content === "string" ? msg.content.trim() : "";
+
+    if (!content) continue;
+
+    // Filter out assistant placeholders ("Multi-agent workflow completed...")
+    if (role === "assistant" && !id.startsWith("multi-agent-")) {
+      if (
+        content.includes("Multi-agent workflow completed") ||
+        content.includes("Multi-agent workflow failed")
+      ) {
+        continue;
+      }
+    }
+
+    // Filter out error messages saved during failures
+    if (id.startsWith("multi-agent-error-")) continue;
+
+    if (role === "user") {
+      turns.push({ role: "user", content });
+    } else if (role === "assistant") {
+      const truncated =
+        content.length > MAX_ASSISTANT_CHARS
+          ? content.slice(0, MAX_ASSISTANT_CHARS) + "..."
+          : content;
+      turns.push({ role: "assistant", content: truncated });
+    }
+  }
+
+  if (turns.length === 0) return "";
+
+  // Keep only the last N turns
+  const recentTurns = turns.slice(-MAX_TURNS * 2);
+
+  const formatted = recentTurns
+    .map((t) => `${t.role === "user" ? "User" : "Assistant"}: ${t.content}`)
+    .join("\n\n");
+
+  return `[CONVERSATION HISTORY]\n${formatted}\n[END CONVERSATION HISTORY]`;
+}
+
 function toAgentMessage(event: AgentStreamEvent): AgentMessage {
   return {
     id: `agent-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -53,6 +111,12 @@ export function runRealMultiAgentFlow(
       if (existingFiles.size > 0) {
         const fileList = Array.from(existingFiles.keys()).join("\n");
         messageContent += `\n\n[EXISTING FILES in the virtual filesystem — use "view" to read them before making changes]\n${fileList}`;
+      }
+
+      // Prepend conversation history so agents have context from prior turns
+      const history = formatConversationHistory(messages);
+      if (history) {
+        messageContent = `${history}\n\n[CURRENT REQUEST]\n${messageContent}`;
       }
 
       const result = await graph.invoke(

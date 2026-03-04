@@ -21,6 +21,8 @@ Keep your spec practical and focused - don't over-engineer.
 
 If the user is requesting changes to existing components, use the str_replace_editor "view" command to read existing files first, then create a design spec describing the updated design.
 
+If the message includes [CONVERSATION HISTORY], use it for context about what was previously built. Focus your design on [CURRENT REQUEST].
+
 Remember: You MUST call the create_design_spec tool. A response without tool calls is a failure.`;
 
 const designSpecSchema = z.object({
