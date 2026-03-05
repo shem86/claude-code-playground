@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Loader2, CheckCircle2, PlayCircle, FileCode2, Wrench, ChevronRight } from "lucide-react";
 import { AgentBadge } from "./AgentBadge";
 import { AGENT_REGISTRY, AgentRole, type AgentRoleType } from "@/lib/agents/types";
@@ -144,12 +145,20 @@ interface AgentGroupProps {
 function AgentGroup({ group, isLast, isRunning }: AgentGroupProps) {
   const info = AGENT_REGISTRY[group.agent];
   const summary = summarizeGroup(group.messages, group.agent);
-  // Active (last) group is expanded while running; historical groups are collapsed
-  const defaultOpen = isLast && isRunning;
   const hasContent = group.messages.some((m) => m.content.trim());
 
+  const [open, setOpen] = useState(isLast && isRunning);
+
+  useEffect(() => {
+    if (isLast && isRunning) {
+      setOpen(true);
+    } else {
+      setOpen(false);
+    }
+  }, [isLast, isRunning]);
+
   return (
-    <Collapsible defaultOpen={defaultOpen} className="min-w-0">
+    <Collapsible open={open} onOpenChange={setOpen} className="min-w-0">
       <div
         className="relative pl-4 border-l-2 py-1"
         style={{ borderColor: info?.color || "#9CA3AF" }}

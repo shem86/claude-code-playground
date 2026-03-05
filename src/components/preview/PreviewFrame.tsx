@@ -90,6 +90,14 @@ export function PreviewFrame() {
     updatePreview();
   }, [refreshTrigger, getAllFiles, entryPoint, error, isFirstLoad]);
 
+  const handleIframeLoad = useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe?.contentDocument) return;
+    iframe.contentDocument.addEventListener("pointerdown", () => {
+      document.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
+    });
+  }, []);
+
   if (error) {
     if (error === "firstLoad") {
       return (
@@ -137,14 +145,6 @@ export function PreviewFrame() {
       </div>
     );
   }
-
-  const handleIframeLoad = useCallback(() => {
-    const iframe = iframeRef.current;
-    if (!iframe?.contentDocument) return;
-    iframe.contentDocument.addEventListener("pointerdown", () => {
-      document.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
-    });
-  }, []);
 
   return (
     <iframe
