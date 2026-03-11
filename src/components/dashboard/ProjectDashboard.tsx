@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, FolderOpen, LogOut, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { Plus, FolderOpen, LogOut, ChevronRight, Pencil, Trash2, GitBranch, Workflow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,13 +13,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { createProject } from "@/actions/create-project";
 import { renameProject } from "@/actions/rename-project";
 import { deleteProject } from "@/actions/delete-project";
 import { signOut } from "@/actions";
 
 interface ProjectDashboardProps {
-  projects: { id: string; name: string; updatedAt: Date }[];
+  projects: { id: string; name: string; updatedAt: Date; usedSupervisor: boolean }[];
   userEmail: string;
 }
 
@@ -181,8 +182,47 @@ export function ProjectDashboard({ projects: initialProjects, userEmail }: Proje
                       <p className="font-semibold text-base text-foreground leading-snug line-clamp-2 flex-1">
                         {project.name}
                       </p>
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold select-none shrink-0 ${accent.bg} ${accent.text}`}>
-                        {project.name.charAt(0).toUpperCase()}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={(e) => e.stopPropagation()}
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                                project.usedSupervisor
+                                  ? "bg-amber-100 text-amber-600 hover:bg-amber-200"
+                                  : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"
+                              }`}
+                              aria-label={project.usedSupervisor ? "Supervisor mode" : "Pipeline mode"}
+                            >
+                              {project.usedSupervisor
+                                ? <Workflow className="h-3.5 w-3.5" />
+                                : <GitBranch className="h-3.5 w-3.5" />
+                              }
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            side="top"
+                            className="w-56 p-3"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex items-center gap-2 mb-1.5">
+                              {project.usedSupervisor
+                                ? <Workflow className="h-3.5 w-3.5 text-amber-600" />
+                                : <GitBranch className="h-3.5 w-3.5 text-neutral-500" />
+                              }
+                              <span className="text-sm font-medium">
+                                {project.usedSupervisor ? "Supervisor" : "Pipeline"}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              {project.usedSupervisor
+                                ? "AI supervisor analyzed each request and picked the optimal agent route."
+                                : "Agents ran in a fixed sequence: Design \u2192 Engineer \u2192 QA."
+                              }
+                            </p>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                     </div>
                     <div className="flex-1" />

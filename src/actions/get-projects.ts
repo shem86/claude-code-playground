@@ -22,8 +22,20 @@ export async function getProjects() {
       name: true,
       createdAt: true,
       updatedAt: true,
+      agentEvents: true,
     },
   });
 
-  return projects;
+  return projects.map(({ agentEvents, ...project }) => {
+    let usedSupervisor = false;
+    try {
+      const runs: { agent: string }[][] = JSON.parse(agentEvents);
+      usedSupervisor = runs.some((run) =>
+        run.some((event) => event.agent === "orchestrator")
+      );
+    } catch {
+      // invalid JSON — treat as no supervisor
+    }
+    return { ...project, usedSupervisor };
+  });
 }
