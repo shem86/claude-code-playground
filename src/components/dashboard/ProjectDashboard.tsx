@@ -236,14 +236,16 @@ export function ProjectDashboard({ projects: initialProjects, userEmail }: Proje
             })}
 
             {/* New Project card */}
-            <button
-              onClick={handleNewProject}
-              className="border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 h-[160px] w-full cursor-pointer group transition-all duration-200 hover:border-foreground/30 hover:bg-accent/50 text-muted-foreground hover:text-foreground">
-              <div className="w-8 h-8 rounded-lg border-2 border-dashed border-current flex items-center justify-center">
-                <Plus className="h-4 w-4" />
-              </div>
-              <span className="text-xs font-medium">New Project</span>
-            </button>
+            <div className="pt-8">
+              <button
+                onClick={handleNewProject}
+                className="border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 h-[160px] w-full cursor-pointer group transition-all duration-200 hover:border-foreground/30 hover:bg-accent/50 text-muted-foreground hover:text-foreground">
+                <div className="w-8 h-8 rounded-lg border-2 border-dashed border-current flex items-center justify-center">
+                  <Plus className="h-4 w-4" />
+                </div>
+                <span className="text-xs font-medium">New Project</span>
+              </button>
+            </div>
           </div>
         )}
       </main>
