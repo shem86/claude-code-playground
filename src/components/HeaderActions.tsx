@@ -202,6 +202,8 @@ export function HeaderActions({ user, projectId }: HeaderActionsProps) {
         New Design
       </Button>
 
+      <span className="text-sm text-muted-foreground">{user.email}</span>
+
       <Button
         variant="ghost"
         size="icon"
