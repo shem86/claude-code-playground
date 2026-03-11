@@ -3,10 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, FolderOpen, LogOut } from "lucide-react";
+import { Plus, FolderOpen, LogOut, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +28,22 @@ function relativeTime(date: Date): string {
   if (diffDays < 30) return `${diffDays} days ago`;
   const m = Math.floor(diffDays / 30);
   return `${m} month${m > 1 ? "s" : ""} ago`;
+}
+
+const PALETTES = [
+  { bg: "bg-violet-100",  text: "text-violet-600"  },
+  { bg: "bg-sky-100",     text: "text-sky-700"     },
+  { bg: "bg-emerald-100", text: "text-emerald-700" },
+  { bg: "bg-amber-100",   text: "text-amber-700"   },
+  { bg: "bg-rose-100",    text: "text-rose-600"    },
+  { bg: "bg-indigo-100",  text: "text-indigo-600"  },
+  { bg: "bg-teal-100",    text: "text-teal-700"    },
+  { bg: "bg-orange-100",  text: "text-orange-700"  },
+];
+
+function getProjectAccent(id: string) {
+  const hash = id.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return PALETTES[hash % PALETTES.length];
 }
 
 export function ProjectDashboard({ projects, userEmail }: ProjectDashboardProps) {
@@ -93,28 +108,40 @@ export function ProjectDashboard({ projects, userEmail }: ProjectDashboardProps)
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Project cards */}
+            {projects.map((project) => {
+              const accent = getProjectAccent(project.id);
+              return (
+                <div
+                  key={project.id}
+                  onClick={() => router.push(`/${project.id}`)}
+                  className="bg-card border border-border rounded-xl shadow-sm flex flex-col h-[160px] p-5 cursor-pointer group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-semibold text-base text-foreground leading-snug line-clamp-2 flex-1">
+                      {project.name}
+                    </p>
+                    <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-xs font-bold select-none ${accent.bg} ${accent.text}`}>
+                      {project.name.charAt(0).toUpperCase()}
+                    </div>
+                  </div>
+                  <div className="flex-1" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">{relativeTime(new Date(project.updatedAt))}</span>
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
+                  </div>
+                </div>
+              );
+            })}
+
             {/* New Project card */}
             <button
               onClick={handleNewProject}
-              className="rounded-xl border border-dashed flex flex-col items-center justify-center gap-2 p-8 text-muted-foreground hover:text-foreground hover:border-foreground/30 hover:bg-accent/50 transition-colors min-h-[120px]">
-              <Plus className="h-6 w-6" />
-              <span className="text-sm font-medium">New Project</span>
+              className="border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 h-[160px] w-full cursor-pointer group transition-all duration-200 hover:border-foreground/30 hover:bg-accent/50 text-muted-foreground hover:text-foreground">
+              <div className="w-8 h-8 rounded-lg border-2 border-dashed border-current flex items-center justify-center">
+                <Plus className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">New Project</span>
             </button>
-
-            {/* Project cards */}
-            {projects.map((project) => (
-              <Card
-                key={project.id}
-                className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => router.push(`/${project.id}`)}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="truncate text-base">{project.name}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription>{relativeTime(new Date(project.updatedAt))}</CardDescription>
-                </CardContent>
-              </Card>
-            ))}
           </div>
         )}
       </main>
