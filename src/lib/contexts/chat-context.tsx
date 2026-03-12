@@ -148,8 +148,11 @@ export function ChatProvider({
         const reader = response.body?.getReader();
         if (!reader) throw new Error("No response stream");
 
+        const collectedMessages: AgentMessage[] = [];
         await consumeSSEStream(reader, (event) => {
-          setAgentMessages((prev) => [...prev, toAgentMessage(event)]);
+          const msg = toAgentMessage(event);
+          collectedMessages.push(msg);
+          setAgentMessages((prev) => [...prev, msg]);
 
           if (event.type === "workflow_done") {
             try {
@@ -173,7 +176,7 @@ export function ChatProvider({
         };
         setMessages((prev) => [...prev, assistantMessage]);
         setAgentMessageHistory((prev) => {
-          if (agentMessages.length > 0) return [...prev, agentMessages];
+          if (collectedMessages.length > 0) return [...prev, collectedMessages];
           return prev;
         });
       } catch (error) {

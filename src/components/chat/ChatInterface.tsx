@@ -100,6 +100,7 @@ export function ChatInterface() {
 
         // If the next message is NOT an error, pair with agent run
         if (!isErrorResponse && agentRunIndex < agentMessageHistory.length) {
+          // Completed run — render from history
           elements.push(
             <AgentActivityFeed
               key={`history-${agentRunIndex}`}
@@ -108,20 +109,22 @@ export function ChatInterface() {
             />
           );
           agentRunIndex++;
+        } else if (
+          !isErrorResponse &&
+          agentMessages.length > 0 &&
+          agentRunIndex >= agentMessageHistory.length
+        ) {
+          // Active run — render live feed inline after its user message
+          elements.push(
+            <AgentActivityFeed
+              key="live-feed"
+              agentMessages={agentMessages}
+              isRunning={isMultiAgentRunning}
+            />
+          );
         }
         // If it IS an error, skip pairing — the error bubble renders on next iteration
       }
-    }
-
-    // Live agent feed at the end
-    if (agentMessages.length > 0) {
-      elements.push(
-        <AgentActivityFeed
-          key="live-feed"
-          agentMessages={agentMessages}
-          isRunning={isMultiAgentRunning}
-        />
-      );
     }
 
     return elements;
