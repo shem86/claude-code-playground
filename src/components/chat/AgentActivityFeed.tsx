@@ -78,8 +78,19 @@ function detectQAVerdict(noCode: string): AgentSummary | null {
 
 /** Produce a single summary line for a group of agent messages. */
 function summarizeGroup(messages: AgentMessage[], agent: AgentRoleType): AgentSummary {
-  // QA: try verdict detection across all messages
+  // QA: check agent_done first (authoritative qaDecisionNode verdict), then fall back to pattern matching
   if (agent === AgentRole.QA) {
+    const doneMsg = messages.find((m) => m.type === "agent_done");
+    if (doneMsg) {
+      const content = doneMsg.content.toLowerCase();
+      if (content.includes("approved")) {
+        return { text: "Approved", verdict: "approved" };
+      }
+      if (content.includes("revision") || content.includes("max iterations")) {
+        return { text: "Revision needed", verdict: "revision" };
+      }
+    }
+
     const allText = messages
       .filter((m) => m.type === "agent_message" && m.content.trim())
       .map((m) => m.content.replace(/```[\s\S]*?```/g, "").trim())
